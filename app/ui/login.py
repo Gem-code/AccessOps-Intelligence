@@ -5,7 +5,7 @@ def render_login():
         key = st.text_input("Enter Access Key:", type="password")
 
         if st.button("Unlock Dashboard"):
-            if key == "enterprise-demo-key":
+            if key == "demo-key":
                 st.session_state["authenticated"] = True
                 st.success("Access granted!")
             else:

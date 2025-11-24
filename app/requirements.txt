@@ -2,3 +2,4 @@ streamlit
 requests
 matplotlib
 reportlab
+streamlit_lottie

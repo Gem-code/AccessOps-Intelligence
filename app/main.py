@@ -6,8 +6,15 @@ from ui.insights_page import render_insights_page
 
 from core.configs import APP_TITLE, APP_SUBTITLE
 
+from core.state_manager import init_history
+
 # Page Config
 st.set_page_config(page_title=APP_TITLE, page_icon="🛡️", layout="wide")
+
+# Initialize session state keys (history, prefill)
+init_history()
+if "prefill" not in st.session_state:
+    st.session_state["prefill"] = {}
 
 # Load CSS
 with open("app/assets/styles.css") as f:
