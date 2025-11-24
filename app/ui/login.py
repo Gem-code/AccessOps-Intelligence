@@ -1,4 +1,5 @@
 import streamlit as st
+from configs import ACCESS_KEY
 
 def render_login():
     # If already authenticated, hide login box completely
@@ -9,7 +10,7 @@ def render_login():
         key = st.text_input("Enter Access Key:", type="password")
 
         if st.button("Unlock Dashboard"):
-            if key == "demo-key":
+            if key == ACCESS_KEY:
                 st.session_state["authenticated"] = True
 
                 # Force rerun using new API
