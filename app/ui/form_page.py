@@ -1,7 +1,8 @@
 import streamlit as st
 from datetime import datetime
-from streamlit_lottie import st_lottie
 import requests
+from streamlit_lottie import st_lottie
+
 
 from core.api_client import evaluate_access_request
 from core.state_manager import save_history_entry
@@ -11,101 +12,120 @@ from core.gauge import draw_small_gauge
 from core.pdf_generator import make_pdf
 
 
-# -------------------------
-#  Load Lottie Animations
-# -------------------------
-def load_lottie(url):
-    try:
-        r = requests.get(url)
-        if r.status_code == 200:
-            return r.json()
-    except:
-        return None
-
+# ---------------------------------------------------------
+#   LOTTIE: SAFE, EMBEDDED ROTATING LOADER (No JS errors)
+# ---------------------------------------------------------
 thinking_anim = {
-  "v": "5.5.1",
-  "fr": 30,
-  "ip": 0,
-  "op": 150,
-  "w": 200,
-  "h": 200,
-  "nm": "processing",
-  "ddd": 0,
-  "assets": [],
-  "layers": [
-    {
-      "ddd": 0,
-      "ind": 1,
-      "ty": 4,
-      "nm": "loader",
-      "sr": 1,
-      "ks": {
-        "o": {"a": 0, "k": 100},
-        "r": {"a": 1, "k": [{"t": 0, "s": 0}, {"t": 150, "s": 360}]},
-        "p": {"a": 0, "k": [100, 100]},
-        "a": {"a": 0, "k": [0, 0]},
-        "s": {"a": 0, "k": [100, 100, 100]}
-      },
-      "shapes": [
+    "v": "5.5.1",
+    "fr": 30,
+    "ip": 0,
+    "op": 150,
+    "w": 200,
+    "h": 200,
+    "nm": "processing",
+    "ddd": 0,
+    "assets": [],
+    "layers": [
         {
-          "ty": "gr",
-          "it": [
-            {
-              "d": 1,
-              "ty": "el",
-              "s": {"a": 0, "k": [120, 120]},
-              "p": {"a": 0, "k": [0, 0]}
+            "ddd": 0,
+            "ind": 1,
+            "ty": 4,
+            "nm": "loader",
+            "sr": 1,
+            "ks": {
+                "o": {"a": 0, "k": 100},
+                "r": {"a": 1, "k": [{"t": 0, "s": 0}, {"t": 150, "s": 360}]},
+                "p": {"a": 0, "k": [100, 100]},
+                "a": {"a": 0, "k": [0, 0]},
+                "s": {"a": 0, "k": [100, 100, 100]}
             },
-            {
-              "ty": "st",
-              "c": {"a": 0, "k": [0.1, 0.4, 0.9, 1]},
-              "w": {"a": 0, "k": 10}
-            },
-            {"ty": "tr", "p": {"a": 0, "k": [0, 0]}}
-          ]
+            "shapes": [
+                {
+                    "ty": "gr",
+                    "it": [
+                        {"d": 1, "ty": "el", "s": {"a": 0, "k": [120, 120]}, "p": {"a": 0, "k": [0, 0]}},
+                        {"ty": "st", "c": {"a": 0, "k": [0.1, 0.4, 0.9, 1]}, "w": {"a": 0, "k": 10}},
+                        {"ty": "tr", "p": {"a": 0, "k": [0, 0]}}
+                    ]
+                }
+            ],
+            "ip": 0,
+            "op": 150,
+            "st": 0
         }
-      ],
-      "ip": 0,
-      "op": 150,
-      "st": 0
-    }
-  ]
+    ]
 }
 
 
-# -------------------------
-#  Main Form Page Renderer
-# -------------------------
+# ---------------------------------------------------------
+#   TEMPLATE CARDS (Streamlit-safe buttons + CSS styling)
+# ---------------------------------------------------------
+
+TEMPLATE_UI = {
+    "AI Agent — Anomaly": {
+        "icon": "🤖",
+        "desc": "Auto-detected anomaly requiring production access",
+        "bg": "#dbeafe",
+    },
+    "Finance Manager — Escalation": {
+        "icon": "👨‍💼",
+        "desc": "Privileged access for emergency reconciliation",
+        "bg": "#fef3c7",
+    },
+    "Developer — Debug": {
+        "icon": "🧑‍💻",
+        "desc": "Temporary admin access for debugging",
+        "bg": "#dcfce7",
+    }
+}
+
+
+# ---------------------------------------------------------
+#   FORM PAGE MAIN RENDER FUNCTION
+# ---------------------------------------------------------
 def render_form_page():
-    st.markdown("### Access Request Form")
 
-    # -------------------------
-    # Role Template Quick Fill
-    # -------------------------
-    with st.container():
-        col_r1, col_r2 = st.columns([2, 1])
+    st.markdown("## Choose a Template")
 
-        with col_r1:
-            chosen_role = st.selectbox("Role Template", ["(none)"] + list(ROLE_TEMPLATES.keys()))
+    # Columns for horizontal layout — auto wraps to vertical on mobile
+    cols = st.columns(len(TEMPLATE_UI))
 
-        with col_r2:
-            if st.button("Apply Template"):
-                if chosen_role != "(none)":
-                    st.session_state["prefill"] = ROLE_TEMPLATES[chosen_role]
-                    st.success(f"Template applied: {chosen_role}")
-                else:
-                    st.info("Select a template before applying.")
+    # Template card buttons
+    for (role, meta), col in zip(TEMPLATE_UI.items(), cols):
+        with col:
+
+            btn = st.button(
+                f"{meta['icon']}  {role}\n{meta['desc']}",
+                key=f"tmpl_{role}",
+                help=f"Apply template: {role}",
+            )
+            # Style overrides for this specific button ID
+            st.markdown(
+                f"""
+                <style>
+                button[kind="secondary"]{{
+                    background-color: {meta['bg']} !important;
+                }}
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+
+            if btn:
+                st.session_state["prefill"] = ROLE_TEMPLATES[role]
+                st.success(f"Template applied: {role}")
+                st.rerun()
 
     st.markdown("---")
 
-    # Prefill Data
+    # Prefill data
     pre = st.session_state.get("prefill", {})
 
-
-    # -------------------------
-    # Form UI
-    # -------------------------
+    # ---------------------------------------------------------
+    #   ACCESS REQUEST FORM
+    # ---------------------------------------------------------
     with st.form("access_request_form"):
+
         col1, col2 = st.columns(2)
 
         with col1:
@@ -113,7 +133,6 @@ def render_form_page():
                 "Request ID",
                 pre.get("request_id", f"REQ-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
             )
-
             user_id = st.text_input("User ID", pre.get("user_id", ""))
             identity_type = st.selectbox(
                 "Identity Type",
@@ -122,31 +141,32 @@ def render_form_page():
             )
             job_title = st.text_input("Job Title", pre.get("job_title", ""))
 
-
         with col2:
             department = st.text_input("Department", pre.get("department", ""))
             requested_resource_id = st.text_input(
-                "Resource ID", pre.get("requested_resource_id", "")
+                "Resource ID",
+                pre.get("requested_resource_id", "")
             )
             requested_resource_name = st.text_input(
-                "Resource Name", pre.get("requested_resource_name", "")
+                "Resource Name",
+                pre.get("requested_resource_name", "")
             )
             access_type = st.selectbox(
-                "Access Type", ["read", "write", "admin"],
+                "Access Type",
+                ["read", "write", "admin"],
                 index=1 if pre.get("access_type") == "write" else 0
             )
 
+        c1, c2 = st.columns(2)
 
-        colA, colB = st.columns(2)
-
-        with colA:
+        with c1:
             system_criticality = st.selectbox(
                 "System Criticality",
                 CRITICALITY_PRESETS,
                 index=CRITICALITY_PRESETS.index(pre.get("system_criticality", "tier_1"))
             )
 
-        with colB:
+        with c2:
             data_sensitivity = st.selectbox(
                 "Data Sensitivity",
                 SENSITIVITY_PRESETS,
@@ -157,11 +177,12 @@ def render_form_page():
 
         submit = st.form_submit_button("Submit Request 🚀")
 
-
     # ===========================================================
-    #                  HANDLE FORM SUBMISSION
+    #                     FORM SUBMITTED
     # ===========================================================
     if submit:
+
+        # Build payload
         payload = {
             "request_id": request_id,
             "user_id": user_id,
@@ -176,44 +197,39 @@ def render_form_page():
             "justification": justification
         }
 
-        # -------------------------
-        #  Animated Processing Loader
-        # -------------------------
+        # ---------------------------------------------------------
+        #   SAFE LOTTIE LOADER (NO "destroy" JS errors)
+        # ---------------------------------------------------------
         with st.spinner("Evaluating request…"):
-            st_lottie(thinking_anim, height=80, key="thinking", loop=True)
+            placeholder = st.empty()
+            with placeholder:
+                st_lottie(thinking_anim, height=80)
+
             response = evaluate_access_request(payload)
 
+            placeholder.empty()
 
-
-        # -------------------------
-        # Extract Fields
-        # -------------------------
+        # ---------------------------------------------------------
+        #   Extract response
+        # ---------------------------------------------------------
         decision = response.get("decision", "UNKNOWN")
         rs = response.get("risk_score", {})
         severity = rs.get("severity_level", "UNKNOWN")
         score = rs.get("net_risk_score", 0)
         report = response.get("board_report", "")
 
-
-        # -------------------------
-        # Color theming
-        # -------------------------
         card_class = (
             "success-card" if severity == "LOW"
             else "warn-card" if severity == "MEDIUM"
             else "danger-card"
         )
 
+        # ---------------------------------------------------------
+        #   RESULT + GAUGE IN SINGLE ROW
+        # ---------------------------------------------------------
+        col1, col2 = st.columns([1.3, 1])
 
-        # -------------------------
-        # Summary Card
-        # -------------------------
-        # Small Gauge Visualization
-        # -------------------------
-        # Responsive Layout for Desktop (side-by-side) and Mobile (stacked)
-        col_result, col_gauge = st.columns([2, 1])
-
-        with col_result:
+        with col1:
             st.markdown(f"""
             <div class='result-card {card_class}'>
                 <h3>📊 Access Evaluation Result</h3>
@@ -223,27 +239,21 @@ def render_form_page():
             </div>
             """, unsafe_allow_html=True)
 
-        with col_gauge:
+        with col2:
             st.markdown("<div class='gauge-wrapper'>", unsafe_allow_html=True)
             st.pyplot(draw_small_gauge(score), clear_figure=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-
-        # -------------------------
-        # Executive Board Report (Full Markdown Formatting)
-        # -------------------------
+        # ---------------------------------------------------------
+        #   Executive Report
+        # ---------------------------------------------------------
         if report:
-            st.markdown("<div class='section-title'>📘 Executive Board Report</div>", unsafe_allow_html=True)
-            st.markdown(f"""
-            <div class="card">
-                {report}
-            
-            """, unsafe_allow_html=True)
+            st.markdown("### 📘 Executive Board Report")
+            st.markdown(f"<div class='card'>{report}</div>", unsafe_allow_html=True)
 
-
-        # -------------------------
-        # Save to History
-        # -------------------------
+        # ---------------------------------------------------------
+        #   Save to history
+        # ---------------------------------------------------------
         save_history_entry({
             "timestamp": datetime.utcnow().isoformat(),
             "request": payload,
@@ -253,11 +263,10 @@ def render_form_page():
             "board_report": report,
         })
 
-
-        # -------------------------
-        # PDF Report Download
-        # -------------------------
-        pdf_data = make_pdf(payload, response)
+        # ---------------------------------------------------------
+        #   PDF Download
+        # ---------------------------------------------------------
+        pdf_data = make_pdf(payload, response, gauge_fig=draw_small_gauge(score))
 
         st.download_button(
             "⬇️ Download PDF Report",

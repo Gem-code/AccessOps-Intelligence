@@ -7,3 +7,5 @@ __pycache__/
 !final_report.json
 venv/
 app/venv/
+history.json
+app/history.json

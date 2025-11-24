@@ -20,7 +20,7 @@ def render_history_page():
         "score": h["net_score"]
     } for h in history])
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width="stretch")
 
     csv = df.to_csv(index=False).encode()
     st.download_button("Download CSV", data=csv, file_name="history.csv")

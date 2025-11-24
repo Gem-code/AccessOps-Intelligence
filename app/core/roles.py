@@ -30,5 +30,19 @@ ROLE_TEMPLATES = {
         "system_criticality": "tier_1",
         "data_sensitivity": "confidential",
         "justification": "Emergency reconciliation after outage"
+    },
+
+    "Developer — Debug": {
+        "request_id": generate_request_id("DEV-DBG"),
+        "user_id": "developer_user",
+        "identity_type": "human_user",
+        "job_title": "Software Engineer",
+        "department": "Engineering",
+        "requested_resource_id": "dev_app_server_admin",
+        "requested_resource_name": "Application Server (Dev/Debug Access)",
+        "access_type": "admin",
+        "system_criticality": "tier_2",
+        "data_sensitivity": "internal",
+        "justification": "Debugging application issues requiring elevated privileges"
     }
 }

@@ -8,6 +8,9 @@ from core.configs import APP_TITLE, APP_SUBTITLE
 
 from core.state_manager import init_history
 
+st.session_state["is_desktop"] = True  # Streamlit cannot detect screen size, but you can toggle if needed
+
+
 # Page Config
 st.set_page_config(page_title=APP_TITLE, page_icon="🛡️", layout="wide")
 
@@ -17,7 +20,7 @@ if "prefill" not in st.session_state:
     st.session_state["prefill"] = {}
 
 # Load CSS
-with open("app/assets/styles.css") as f:
+with open("app/assets/styles.css" or "assets/styles.css") as f:
     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # Title

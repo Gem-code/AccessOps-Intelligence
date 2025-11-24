@@ -50,10 +50,6 @@
 }
 
 /* Reduce vertical spacing between sections */
-.block-container {
-    padding-top: 1rem !important;
-}
-
 .result-card {
     margin-bottom: 0.5rem !important;
 }
@@ -62,7 +58,59 @@
     margin-top: 0.5rem !important;
 }
 
+.template-card-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
 
+.template-card {
+    padding: 18px 22px;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 250px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+.template-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.09);
+}
+
+.template-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.template-card-title span.icon {
+    font-size: 20px;
+    margin-right: 8px;
+}
+
+.template-card-desc {
+    font-size: 13px;
+    color: #4b5563;
+}
+
+
+/* Desktop — horizontal */
+@media (min-width: 768px) {
+    .template-card-container {
+        flex-direction: row;
+    }
+}
+
+/* Mobile — vertical stacking */
+@media (max-width: 767px) {
+    .template-card-container {
+        flex-direction: column;
+    }
+}
 
 /* Force gauge to behave responsively */
 @media (min-width: 768px) {
@@ -80,4 +128,8 @@
     .element-container iframe, .stImage > img, .stPlotlyChart, .stPyplot {
         max-width: 100% !important;
     }
+}
+
+#tabs-bui2-tabpanel-0 > div > div:nth-child(7) > div > div.stColumn.st-emotion-cache-2tfwxv.e196pkbe1 > div > div.stElementContainer.element-container.st-emotion-cache-13gev4o.e196pkbe0 > div > div > div.stImage.st-emotion-cache-qyyadu.e1mq0gaz0 > div > img{
+ max-width: 50% !important;   
 }
