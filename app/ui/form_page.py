@@ -179,10 +179,8 @@ def render_form_page():
         # -------------------------
         #  Animated Processing Loader
         # -------------------------
-        with st.spinner(""):
-            st_lottie(thinking_anim, height=140, key="think")
-            st.info("Evaluating request... 🧠 Thinking... 🔄 Processing...")
-
+        with st.spinner("Evaluating request…"):
+            st_lottie(thinking_anim, height=80, key="thinking", loop=True)
             response = evaluate_access_request(payload)
 
 
@@ -227,7 +225,7 @@ def render_form_page():
 
         with col_gauge:
             st.markdown("<div class='gauge-wrapper'>", unsafe_allow_html=True)
-            st.pyplot(draw_small_gauge(score))
+            st.pyplot(draw_small_gauge(score), clear_figure=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
 

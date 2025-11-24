@@ -38,6 +38,32 @@
     margin-top: 10px;
 }
 
+/* Removes extra padding around pyplot */
+.gauge-wrapper div[data-testid="stVerticalBlock"] {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.gauge-wrapper canvas {
+    margin: 0 auto !important;
+    display: block !important;
+}
+
+/* Reduce vertical spacing between sections */
+.block-container {
+    padding-top: 1rem !important;
+}
+
+.result-card {
+    margin-bottom: 0.5rem !important;
+}
+
+.section-title {
+    margin-top: 0.5rem !important;
+}
+
+
+
 /* Force gauge to behave responsively */
 @media (min-width: 768px) {
     /* Desktop = fix max width of gauge */
