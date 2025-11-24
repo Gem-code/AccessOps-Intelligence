@@ -125,7 +125,8 @@ Open:
 
 When the app loads:
 
-- Enter your **Access Key** (configured in `configs.py`)
+- Enter your **ACCESS_KEY** (configured in `app/configs.py`)
+- Default **ACCESS_KEY** is `demo-key`
 - Click **Unlock Dashboard**
 
 The Request Form, Insights, and History tabs will appear.
