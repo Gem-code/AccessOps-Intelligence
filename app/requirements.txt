@@ -1,6 +1,4 @@
-google-adk
-google-cloud-aiplatform
-opentelemetry-instrumentation-google-genai
-xhtml2pdf
-markdown
-nest_asyncio
+streamlit
+requests
+matplotlib
+reportlab

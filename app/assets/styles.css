@@ -1,0 +1,16 @@
+.title {
+    font-size: 28px;
+    font-weight: 700;
+}
+.subtitle {
+    font-size: 15px;
+    color: #566573;
+    margin-top: -10px;
+    margin-bottom: 20px;
+}
+.card {
+    background: #fff;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+}
