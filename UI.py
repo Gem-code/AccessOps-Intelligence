@@ -221,10 +221,12 @@ st.markdown("""
     }
     
     .risk-score-value {
-    font-size: clamp(3rem, 8vw, 6rem);  # ← Responsive: adjusts to screen width
-    font-weight: 900;
-    line-height: 1;
-}
+        font-size: 6rem;
+        font-weight: 900;
+        line-height: 1;
+        margin: 1rem 0;
+        text-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    }
     
     .risk-critical { color: #dc143c; }
     .risk-high { color: #ff6b35; }
@@ -704,7 +706,7 @@ async def execute_agent_with_trace(
     session_id: str
 ) -> Dict[str, Any]:
     """Execute agent and capture full trace"""
-    runner = Runner(agent=agent, session_service=session_service, app_name="accessops-intel")
+    runner = Runner(agent=agent, session_service=session_service)
     
     tool_calls = []
     raw_output = ""
@@ -712,7 +714,7 @@ async def execute_agent_with_trace(
     async for event in runner.run_async(
         user_id="ciso-user",
         session_id=session_id,
-        new_message={"text": prompt}
+        new_message=prompt
     ):
         if hasattr(event, 'tool_name') and event.tool_name:
             tool_calls.append({
@@ -955,25 +957,25 @@ def render_header():
 
 def render_sidebar():
     """Render the professional sidebar"""
-with st.sidebar:
-    st.markdown("## 🔑 Authentication")
-    
-    api_key = st.text_input(
-        "Google Gemini API Key",
-        type="password",
-        value=os.environ.get("GOOGLE_API_KEY", ""),
-        help="🔗 Get your key at: https://makersuite.google.com/app/apikey"
-    )
-    
-    if api_key:
-        os.environ["GOOGLE_API_KEY"] = api_key
-        st.success("✅ API Key Configured")
-    else:
-        st.error("⚠️ API Key Required")
-    
-    st.markdown("---")
-    
-    with st.expander("🤖 5-Agent Council"):
+    with st.sidebar:
+        st.markdown("## 🔑 Authentication")
+        
+        api_key = st.text_input(
+            "Google Gemini API Key",
+            type="password",
+            value=os.environ.get("GOOGLE_API_KEY", ""),
+            help="🔗 Get your key at: https://makersuite.google.com/app/apikey"
+        )
+        
+        if api_key:
+            os.environ["GOOGLE_API_KEY"] = api_key
+            st.success("✅ API Key Configured")
+        else:
+            st.error("⚠️ API Key Required")
+        
+        st.markdown("---")
+        
+        st.markdown("## 🤖 Agent Council")
         st.markdown("""
         <div class="agent-pill">🕵️ Investigator</div>
         <div class="agent-pill">⚖️ Severity Analyst</div>
@@ -981,31 +983,31 @@ with st.sidebar:
         <div class="agent-pill">🚦 Gatekeeper</div>
         <div class="agent-pill">📊 Narrator</div>
         """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("## 📊 System Metrics")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Agents", "5", "Active")
-        st.metric("Tools", "5", "Integrated")
-    with col2:
-        st.metric("Latency", "~5s", "Real-time")
-        st.metric("Framework", "NIST", "800-53")
-    
-    st.markdown("---")
-    
-    st.markdown("## 🏆 Competition")
-    st.markdown("""
-    **Google AI Agents Capstone**  
-    Enterprise Security Track
-    
-    **Innovation:**  
-    Reflexive Critique Loop
-    
-    **Impact:**  
-    97% Cost Reduction
-    """)
+        
+        st.markdown("---")
+        
+        st.markdown("## 📊 System Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Agents", "5", "Active")
+            st.metric("Tools", "5", "Integrated")
+        with col2:
+            st.metric("Latency", "~5s", "Real-time")
+            st.metric("Framework", "NIST", "800-53")
+        
+        st.markdown("---")
+        
+        st.markdown("## 🏆 Competition")
+        st.markdown("""
+        **Google AI Agents Capstone**  
+        Enterprise Security Track
+        
+        **Innovation:**  
+        Reflexive Critique Loop
+        
+        **Impact:**  
+        97% Cost Reduction
+        """)
         
         st.markdown("---")
         
