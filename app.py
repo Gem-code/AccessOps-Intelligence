@@ -1,311 +1,239 @@
 import streamlit as st
-import asyncio
 import json
 import os
-import io
-import base64
-import matplotlib.pyplot as plt
-from math import pi
-from datetime import datetime
+import asyncio
 import nest_asyncio
+import plotly.graph_objects as go
+from datetime import datetime
 
-# Import your Logic Engine (Must be in the same folder)
+# Import your logic engine
 try:
     import accessops_engine
 except ImportError:
-    st.error("CRITICAL: 'accessops_engine.py' not found. Please upload it.")
+    st.error("CRITICAL ERROR: 'accessops_engine.py' not found. Please ensure it is in the same directory.")
     st.stop()
 
-# Apply Async Fix
+# Fix for asyncio
 nest_asyncio.apply()
 
 # ============================================================================
-# 1. VISUAL UTILITIES (The "Swag" Features)
+# 1. PAGE CONFIG & STYLING (High Contrast)
 # ============================================================================
-
-def draw_risk_gauge(score):
-    """Draws a speedometer-style gauge for risk score."""
-    # Colors
-    colors = ["#22C55E", "#F59E0B", "#EF4444"] # Green, Yellow, Red
-    
-    fig, ax = plt.subplots(figsize=(4, 2.5), subplot_kw={'projection': 'polar'})
-    fig.patch.set_alpha(0) # Transparent background
-    ax.set_theta_offset(pi)
-    ax.set_theta_direction(-1)
-    
-    # Draw Arcs
-    ax.barh(1, pi/3, left=0, height=0.5, color=colors[0])      # Low
-    ax.barh(1, pi/3, left=pi/3, height=0.5, color=colors[1])   # Med
-    ax.barh(1, pi/3, left=2*pi/3, height=0.5, color=colors[2]) # High
-    
-    # Draw Needle
-    angle = (score / 100) * pi
-    ax.arrow(angle, 0, 0, 1, width=0.05, head_width=0.15, head_length=0.2, fc='white', ec='black')
-    
-    # Clean up chart
-    ax.set_ylim(0, 1.5)
-    ax.set_yticks([])
-    ax.set_xticks([])
-    ax.spines['polar'].set_visible(False)
-    
-    return fig
-
-def generate_pdf_report(request_data, result):
-    """Generates a professional PDF using ReportLab (Simplified from teammate)."""
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import LETTER
-    from reportlab.lib import colors
-    
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=LETTER)
-    width, height = LETTER
-    
-    # Header
-    c.setFillColorRGB(0.1, 0.1, 0.2) # Dark Blue
-    c.rect(0, height-80, width, 80, fill=1, stroke=0)
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(50, height-50, "AccessOps Intelligence Audit")
-    
-    # Content
-    c.setFillColor(colors.black)
-    c.setFont("Helvetica", 12)
-    y = height - 120
-    
-    # 1. Request Details
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "1. Access Request Details")
-    y -= 25
-    c.setFont("Helvetica", 11)
-    for key, val in request_data.items():
-        c.drawString(50, y, f"{key}: {str(val)[:80]}") # Truncate long lines
-        y -= 15
-        
-    y -= 20
-    
-    # 2. Risk Verdict
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "2. Automated Risk Verdict")
-    y -= 25
-    
-    decision = result.get('decision', 'UNKNOWN')
-    score = result.get('risk_score', {}).get('net_risk_score', 0)
-    
-    # Color badge
-    if "DENY" in decision or "REVIEW" in decision:
-        c.setFillColor(colors.red)
-    else:
-        c.setFillColor(colors.green)
-    
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, f"DECISION: {decision}")
-    c.setFillColor(colors.black)
-    y -= 20
-    c.setFont("Helvetica", 12)
-    c.drawString(50, y, f"Net Risk Score: {score}/100")
-    
-    # 3. Audit Trail (Cleaned)
-    y -= 40
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "3. Executive Summary")
-    y -= 25
-    c.setFont("Helvetica", 10)
-    
-    report_text = result.get('board_report', "No report generated.")
-    # Simple text wrap for PDF
-    lines = report_text.split('\n')
-    for line in lines:
-        if "###" in line: continue # Skip markdown headers
-        if y < 50: 
-            c.showPage()
-            y = height - 50
-        c.drawString(50, y, line.replace('*', '').replace('#', ''))
-        y -= 14
-        
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# ============================================================================
-# 2. PAGE CONFIG & STYLING
-# ============================================================================
-
 st.set_page_config(
-    page_title="AccessOps | CISO Dashboard",
+    page_title="AccessOps Intelligence",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Enterprise Dark Mode CSS
+# Custom CSS for visibility and "Steps" styling
 st.markdown("""
 <style>
     /* Main Background */
-    .stApp { background-color: #0E1117; }
+    .stApp { background-color: #0e1117; color: #ffffff; }
     
-    /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #161B22; }
-    
-    /* Metrics */
-    div[data-testid="metric-container"] {
-        background-color: #21262D;
-        border: 1px solid #30363D;
-        padding: 15px;
+    /* Step Headers */
+    .step-header {
+        background-color: #1f2937;
+        padding: 10px 15px;
         border-radius: 8px;
+        border-left: 5px solid #3b82f6;
+        margin-bottom: 15px;
+        font-weight: bold;
+        font-size: 1.1em;
     }
     
-    /* Headers */
-    h1, h2, h3 { color: #E6EDF3 !important; font-family: 'Segoe UI', sans-serif; }
-    
-    /* Success/Error Boxes */
-    .stSuccess { background-color: rgba(35, 134, 54, 0.2); border: 1px solid #238636; }
-    .stError { background-color: rgba(218, 54, 51, 0.2); border: 1px solid #DA3633; }
-    
-    /* Buttons */
-    div.stButton > button {
-        width: 100%;
-        background-color: #238636;
-        color: white;
-        border: none;
-        padding: 12px;
-        font-size: 16px;
-        font-weight: 600;
+    /* JSON Input Area */
+    .stTextArea textarea {
+        background-color: #161b22;
+        color: #a5d6ff;
+        font-family: 'Courier New', monospace;
     }
-    div.stButton > button:hover { background-color: #2EA043; }
+    
+    /* Sidebar Text Visibility */
+    .stRadio label { color: #ffffff !important; font-weight: 600; }
+    
+    /* Success/Error/Info Boxes */
+    .stAlert { font-weight: 500; }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# 3. SIDEBAR & CONFIG
+# 2. VISUAL HELPERS
 # ============================================================================
+def create_risk_gauge(score):
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = score,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "NIST Risk Score", 'font': {'size': 20, 'color': "#ffffff"}},
+        number = {'font': {'size': 40, 'color': "white"}},
+        gauge = {
+            'axis': {'range': [None, 100], 'tickcolor': "white"},
+            'bar': {'color': "rgba(0,0,0,0)"},
+            'bgcolor': "white",
+            'steps': [
+                {'range': [0, 30], 'color': "#059669"},
+                {'range': [30, 60], 'color': "#d97706"},
+                {'range': [60, 85], 'color': "#dc2626"},
+                {'range': [85, 100], 'color': "#7f1d1d"}
+            ],
+            'threshold': {'line': {'color': "white", 'width': 4}, 'thickness': 0.75, 'value': score}
+        }
+    ))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=30, r=30, t=50, b=30), height=250)
+    return fig
 
+# ============================================================================
+# 3. SIDEBAR (Configuration)
+# ============================================================================
 with st.sidebar:
-    # Logo (Using Mermaid Ink for reliability)
     st.image("https://mermaid.ink/img/pako:eNp1k01vwyAMhv8K8nFK1B942GGn3aZqT9W0uXAhwRqQBEyVqv_9OMm67bI4gPH7gW1swFpaQwG8e9fK0cNlq7S8b7S6q1S9r9W90g8gL1pda_2ilb7R6lGrl8q8aP2i1V_68cW20E_6y8W20u9tC_2gH19sC_2iv1xsK_22bSH8yv-F0A_68cW20C_6y8W20m_bFvpH_xVC_0II_aAfX2wL_aK_XGwr_bZt4de_G0I_6McX20K_6C8X20q_bVv49e-G0A_68cW20C_6y8W20m_bFvpH_xVC_0II_aAfX2wL_aK_XGwr_bZtIfzK_4XQD_rxxd9sC_1i1y62lX7btvDr3w2hH_Tji22hX_SXi22l37Yt9I_-K4R-0I8vtoV-0V8utpV-27bQj_4rhP6FEPpBP77YFvpFf7nYVvpt28KvfzeEftCPL7aFftFfLraVftu20I_-K4R-0I8vtoV-0V8utpV-27aFfvRfIfQvhNAP-vHFttAv-svFttJv2xbCr_xfCP2gH19sC_2iv1xsK_22baF_9F8h9C-E0A_68cW20C_6y8W20m_bFn79uyH0g358sS30i_5ysa3027aFfvRfIfSDfnzxt9pC_wF7tN2G", use_column_width=True)
     
-    st.markdown("### ⚙️ System Configuration")
+    st.markdown("### ⚙️ Step 1: Configuration")
     
-    # API Key handling
-    api_key = st.text_input("Google API Key", type="password", value=os.environ.get("GOOGLE_API_KEY", ""))
-    if not api_key:
-        st.warning("⚠️ API Key Required")
+    # API Key Input
+    api_key = st.text_input("Enter Google API Key:", type="password", help="Required for Gemini 1.5 Flash")
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+        st.success("✅ Key Loaded")
     else:
-        os.environ["GOOGLE_API_KEY"] = api_key # Set for engine to use
-        st.success("🔑 System Secured")
+        st.warning("⚠️ Waiting for Key...")
 
     st.markdown("---")
-    st.markdown("### 📂 Scenario Templates")
-    
-    # Scenario Templates (The Teammate's good idea, simplified)
-    scenario = st.radio(
-        "Select a Test Case:",
-        ["Toxic Finance Bot (Critical)", "DevOps Engineer (Low Risk)", "Custom Payload"]
-    )
+    st.info("**About:** This system prevents 'Context Blindness' by using Agentic AI to evaluate non-human identity access requests.")
 
 # ============================================================================
 # 4. MAIN DASHBOARD
 # ============================================================================
 
-st.title("🛡️ AccessOps Intelligence")
-st.caption("Agentic Governance for Non-Human Identities")
+st.title("🚦 CISO Command Center")
 
-# Data Prep based on Template
-if scenario == "Toxic Finance Bot (Critical)":
-    default_json = {
-        "request_id": "REQ-TOXIC-001",
-        "user_id": "svc_finops_auto_bot",
-        "identity_type": "ai_agent",
-        "resource": "prod_general_ledger_rw",
-        "access_type": "write",
-        "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix."
-    }
-elif scenario == "DevOps Engineer (Low Risk)":
-    default_json = {
-        "request_id": "REQ-DEVOPS-99",
-        "user_id": "eng_human_user",
-        "identity_type": "human",
-        "resource": "dev_logs_read",
-        "access_type": "read",
-        "justification": "Investigating debug logs in non-prod."
-    }
-else:
-    default_json = {}
-
-# Input Column
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns([1, 1.2])
 
 with col1:
-    st.subheader("📨 Incoming Access Request")
-    request_text = st.text_area("JSON Payload", value=json.dumps(default_json, indent=2), height=250)
+    st.markdown('<div class="step-header">📝 Step 2: Select a Scenario</div>', unsafe_allow_html=True)
     
-    run_btn = st.button("🚨 RUN RISK ASSESSMENT", type="primary")
-
-# Execution Logic
-if run_btn and api_key:
-    try:
-        req_data = json.loads(request_text)
+    # SCENARIO TEMPLATES (Corrected Keys)
+    scenario = st.radio(
+        "Choose a Test Case to Pre-fill:",
+        ["Toxic Finance Bot (CRITICAL)", "DevOps Engineer (LOW)", "Custom"],
+        help="Click to load a pre-defined JSON payload."
+    )
+    
+    # Logic to switch JSON based on selection
+    if scenario == "Toxic Finance Bot (CRITICAL)":
+        default_json = {
+            "request_id": "REQ-TOXIC-001",
+            "user_id": "svc_finops_auto_bot",
+            "identity_type": "ai_agent",
+            "job_title": "Automated Financial Ops",
+            "department": "Finance Automation",
+            "requested_resource_id": "prod_general_ledger_rw",  # FIXED KEY
+            "requested_resource_name": "Production General Ledger",
+            "access_type": "write",
+            "system_criticality": "tier_1",
+            "data_sensitivity": "restricted",
+            "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix."
+        }
+        st.caption("ℹ️ **Context:** A bot is asking for Write Access to the General Ledger. This violates SoD policies.")
         
+    elif scenario == "DevOps Engineer (LOW)":
+        default_json = {
+            "request_id": "REQ-DEVOPS-005",
+            "user_id": "eng_human_user",
+            "identity_type": "human",
+            "job_title": "Senior DevOps",
+            "department": "Engineering",
+            "requested_resource_id": "dev_logs_read",  # FIXED KEY
+            "requested_resource_name": "Dev Logs",
+            "access_type": "read",
+            "system_criticality": "non_prod",
+            "data_sensitivity": "internal",
+            "justification": "Debugging build failure."
+        }
+        st.caption("ℹ️ **Context:** A human engineer requesting Read Access to logs. Low risk.")
+    else:
+        default_json = {}
+
+    # Text Area
+    st.markdown('<div class="step-header">📨 Step 3: Review JSON Payload</div>', unsafe_allow_html=True)
+    request_text = st.text_area("Access Request Data:", value=json.dumps(default_json, indent=2), height=300)
+
+    # Run Button
+    st.markdown("<br>", unsafe_allow_html=True)
+    run_btn = st.button("🚨 RUN SECURITY AUDIT", type="primary", use_container_width=True)
+
+# ============================================================================
+# 5. EXECUTION LOGIC
+# ============================================================================
+
+if run_btn:
+    if not api_key:
+        st.error("❌ STOP: You must enter a Google API Key in the Sidebar (Step 1).")
+    else:
         with col2:
-            st.subheader("🧠 Agentic Reasoning Trace")
-            status_container = st.status("🕵️ Investigator Agent: Gathering context...", expanded=True)
+            st.markdown('<div class="step-header">🧠 Step 4: Agentic Reasoning Trace</div>', unsafe_allow_html=True)
             
-            # 1. Run the Engine
-            # We wrap the async call here
-            result = asyncio.run(accessops_engine.run_pipeline(req_data))
-            
-            # 2. Update UI Steps
-            status_container.write("✅ Investigator: Context gathered (IAM, Peers, Logs)")
-            status_container.write(f"✅ Analyst: Inherent Risk Score calculated.")
-            status_container.write("✅ Critic: Audit review complete.")
-            
-            decision = result.decision
-            score = result.risk_score.get('net_risk_score', 0)
-            
-            if "DENY" in decision or "REVIEW" in decision:
-                status_container.update(label="🛑 Gatekeeper: BLOCKED High Risk Request", state="error", expanded=True)
-            else:
-                status_container.update(label="✅ Gatekeeper: Approved", state="complete", expanded=False)
+            try:
+                req_data = json.loads(request_text)
+                
+                # Check for the specific key that caused the error
+                if "requested_resource_id" not in req_data:
+                    st.error("❌ JSON Error: Missing key 'requested_resource_id'. The Engine needs this to check policies.")
+                    st.stop()
 
-        # ==========================
-        # RESULTS AREA
-        # ==========================
-        st.divider()
-        
-        # Header
-        r_col1, r_col2, r_col3 = st.columns([1, 1, 1])
-        
-        with r_col1:
-            st.metric("Final Decision", decision, delta="STOP" if score > 50 else "GO", delta_color="inverse")
-        
-        with r_col2:
-            st.metric("Net Risk Score", f"{score}/100", delta="Critical" if score > 80 else "Safe", delta_color="inverse")
-            
-        with r_col3:
-            # The Visual Gauge
-            st.pyplot(draw_risk_gauge(score), transparent=True)
+                # Status Container
+                status_box = st.status("🕵️ Agents Initializing...", expanded=True)
+                
+                # Async Execution Wrapper
+                async def run_analysis():
+                    status_box.write("🔍 Investigator: Fetching IAM & Peer Data...")
+                    return await accessops_engine.run_pipeline(req_data)
 
-        # The Report
-        st.subheader("📄 Executive Audit Artifact (NIST 800-53)")
-        with st.container():
-            st.markdown(result.board_report)
-            
-        # PDF Download
-        pdf_bytes = generate_pdf_report(req_data, {
-            "decision": decision,
-            "risk_score": result.risk_score,
-            "board_report": result.board_report
-        })
-        
-        st.download_button(
-            label="⬇️ Download Official Audit PDF",
-            data=pdf_bytes,
-            file_name=f"Audit_Report_{req_data.get('request_id')}.pdf",
-            mime="application/pdf"
-        )
+                # Run!
+                result = asyncio.run(run_analysis())
+                
+                # Update Status
+                status_box.write("✅ Investigator: Context Loaded.")
+                status_box.write("✅ Analyst: NIST 800-53 Risk Calculated.")
+                status_box.write("✅ Critic: Peer Review Complete.")
+                
+                # Decision Logic
+                decision = result.decision
+                score = result.risk_score.get('net_risk_score', 0)
+                
+                if "DENY" in decision or "REVIEW" in decision:
+                    status_box.update(label="🛑 GATEKEEPER: BLOCKED (High Risk)", state="error", expanded=False)
+                    alert_type = "error"
+                else:
+                    status_box.update(label="✅ GATEKEEPER: APPROVED", state="complete", expanded=False)
+                    alert_type = "success"
 
-    except Exception as e:
-        st.error(f"Simulation Error: {e}")
-        st.info("Make sure 'accessops_engine.py' is in the same folder.")
+                # Results Dashboard
+                st.divider()
+                
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Decision", decision, delta="STOP" if score > 50 else "GO", delta_color="inverse")
+                m2.metric("Net Risk Score", f"{score}/100", delta="CRITICAL" if score > 80 else "SAFE", delta_color="inverse")
+                
+                policy_vs = len(result.investigation.get('policy_violations', []))
+                m3.metric("Policy Violations", policy_vs, delta="DETECTED" if policy_vs > 0 else "None", delta_color="inverse")
+                
+                # Gauge
+                st.plotly_chart(create_risk_gauge(score), use_container_width=True)
+                
+                # Final Alert
+                if alert_type == "error":
+                    st.error(f"🛑 **BLOCKED:** This request violates security policies. See Report below.")
+                else:
+                    st.success("✅ **APPROVED:** Request is within normal parameters.")
+                
+                # Report
+                with st.expander("📄 View Executive Audit Report", expanded=True):
+                    st.markdown(result.board_report)
 
-elif run_btn and not api_key:
-    st.error("❌ Access Denied: Please enter Google API Key in the sidebar.")
+            except json.JSONDecodeError:
+                st.error("❌ Invalid JSON format in text area.")
+            except Exception as e:
+                st.error(f"Execution Error: {str(e)}")
