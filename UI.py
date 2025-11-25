@@ -1044,41 +1044,29 @@ col2.metric("Decision", "BLOCKED", "🛑")
 col3.metric("Policy", "POL-SOD-001")
 col4.metric("NIST", "AC-6")
 
+toxic_scenario = {
+    "request_id": "REQ-AI-CRITICAL-001",
+    "user_id": "svc_finops_auto_bot",
+    "identity_type": "ai_agent",
+    "job_title": "Automated Financial Ops",
+    "department": "Finance Automation",
+    "requested_resource_id": "prod_general_ledger_rw",
+    "requested_resource_name": "Production General Ledger",
+    "access_type": "write",
+    "system_criticality": "tier_1",
+    "data_sensitivity": "restricted",
+    "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
+}
+
 with st.expander("⚙️ Advanced: View/Edit Request JSON"):
-    toxic_scenario = {
-        "request_id": "REQ-AI-CRITICAL-001",
-        "user_id": "svc_finops_auto_bot",
-        "identity_type": "ai_agent",
-        "job_title": "Automated Financial Ops",
-        "department": "Finance Automation",
-        "requested_resource_id": "prod_general_ledger_rw",
-        "requested_resource_name": "Production General Ledger",
-        "access_type": "write",
-        "system_criticality": "tier_1",
-        "data_sensitivity": "restricted",
-        "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
-    }
-    
     request_json = st.text_area(
         "Modify JSON to test different scenarios:",
         value=json.dumps(toxic_scenario, indent=2),
         height=200,
         help="Edit this JSON to test different access requests"
     )
-else:
-    toxic_scenario = {
-        "request_id": "REQ-AI-CRITICAL-001",
-        "user_id": "svc_finops_auto_bot",
-        "identity_type": "ai_agent",
-        "job_title": "Automated Financial Ops",
-        "department": "Finance Automation",
-        "requested_resource_id": "prod_general_ledger_rw",
-        "requested_resource_name": "Production General Ledger",
-        "access_type": "write",
-        "system_criticality": "tier_1",
-        "data_sensitivity": "restricted",
-        "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
-    }
+
+if 'request_json' not in locals():
     request_json = json.dumps(toxic_scenario, indent=2)
 
 return request_json
