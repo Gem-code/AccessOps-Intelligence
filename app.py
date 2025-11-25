@@ -153,40 +153,26 @@ with st.sidebar:
 st.title("🛡️ CISO Command Center")
 st.markdown("### Enterprise Access Risk Assessment")
 
-col1, col2 = st.columns([1, 1.2])
+# Rebalanced Layout: Left (1) vs Right (2)
+col1, col2 = st.columns([1, 2])
 
 with col1:
     # --- Step 2: Scenario Selection ---
     st.markdown('<div class="step-header">📝 Step 2: Load Scenario Template</div>', unsafe_allow_html=True)
     
-    # The radio button is now styled by CSS to be visible
+    # High Contrast Radio Buttons
     scenario = st.radio(
-        "Select a pre-defined test case:",
-        ["Toxic Finance Bot (CRITICAL RISK)", "DevOps Engineer (LOW RISK)", "Custom Payload"],
+        "Select a Test Case:",
+        ["1. DevOps Engineer (LOW RISK)", "2. Toxic Finance Bot (CRITICAL RISK)", "3. Custom Payload"],
         captions=[
-            "AI Agent attempting unauthorized Write access to General Ledger.", 
-            "Human Engineer requesting Read access to logs.", 
-            "Enter your own JSON payload manually."
+            "✅ Safe: Human requesting Read Access.", 
+            "🛑 Danger: AI Bot requesting Write Access.", 
+            "✏️ Edit the JSON manually below."
         ]
     )
     
-    # --- JSON Pre-filling Logic (FIXED KEYS HERE) ---
-    if "Toxic" in scenario:
-        default_json = {
-            "request_id": "REQ-TOXIC-001",
-            "user_id": "svc_finops_auto_bot",
-            "identity_type": "ai_agent",
-            "job_title": "Automated Financial Ops",
-            "department": "Finance Automation",
-            # CRITICAL FIX: Key matches what engine expects
-            "requested_resource_id": "prod_general_ledger_rw",  
-            "requested_resource_name": "Production General Ledger",
-            "access_type": "write",
-            "system_criticality": "tier_1",
-            "data_sensitivity": "restricted",
-            "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix."
-        }
-    elif "DevOps" in scenario:
+    # --- JSON Pre-filling Logic ---
+    if "DevOps" in scenario:
         default_json = {
             "request_id": "REQ-DEVOPS-005",
             "user_id": "eng_human_user",
@@ -200,8 +186,29 @@ with col1:
             "data_sensitivity": "internal",
             "justification": "Debugging build failure."
         }
+    elif "Toxic" in scenario:
+        default_json = {
+            "request_id": "REQ-TOXIC-001",
+            "user_id": "svc_finops_auto_bot",
+            "identity_type": "ai_agent",
+            "job_title": "Automated Financial Ops",
+            "department": "Finance Automation",
+            "requested_resource_id": "prod_general_ledger_rw",
+            "requested_resource_name": "Production General Ledger",
+            "access_type": "write",
+            "system_criticality": "tier_1",
+            "data_sensitivity": "restricted",
+            "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix."
+        }
     else:
-        default_json = {}
+        # Custom Template
+        default_json = {
+            "request_id": "REQ-CUSTOM-001",
+            "user_id": "enter_user_id",
+            "requested_resource_id": "enter_resource_id",
+            "access_type": "read",
+            "justification": "Enter justification here"
+        }
 
     # --- Step 3: Review Payload ---
     st.markdown('<div class="step-header">📨 Step 3: Review JSON Payload</div>', unsafe_allow_html=True)
@@ -231,7 +238,7 @@ if run_btn:
                     st.stop()
 
                 # --- Live Agent Execution ---
-                status_box = st.status("🕵️ Investigator Agent: Gathering Context...", expanded=True)
+                status_box = st.status("🕵️ AccessOps Core Initializing...", expanded=True)
                 
                 async def run_analysis():
                     # Call the imported engine
@@ -242,7 +249,7 @@ if run_btn:
                 # Update Status Steps
                 status_box.write("✅ Investigator: IAM & Peer data loaded.")
                 status_box.write("✅ Analyst: NIST 800-53 Risk Score calculated.")
-                status_box.write("✅ Critic: Adversarial review passed.")
+                status_box.write("✅ Critic: Adversarial review complete.")
                 
                 # --- Verdict Logic ---
                 decision = result.decision
@@ -272,25 +279,32 @@ if run_btn:
                 
                 # Final Verdict Box
                 if alert_type == "error":
-                    st.error(f"🛑 **BLOCKED:** This request violates security policies. See Report below.")
+                    st.error(f"🛑 **BLOCKED:** This request violates security policies. Human intervention required.")
                 else:
                     st.success("✅ **APPROVED:** Request is within normal parameters.")
                 
-                # --- Step 6: PDF Report ---
-                with st.expander("📄 View Executive Audit Report", expanded=True):
-                    st.markdown(result.board_report)
+                # --- Step 6: Reports ---
+                c1, c2 = st.columns(2)
                 
-                # PDF Download Button
+                with c1:
+                    with st.expander("📜 View Raw Audit Log (JSON)"):
+                         st.json(result.risk_score)
+                         
+                with c2:
+                    with st.expander("📄 View Board Report (Markdown)", expanded=True):
+                        st.markdown(result.board_report)
+                
+                # PDF Download Button (Fixed Visibility)
                 st.download_button(
-                    label="📥 Download Official Audit PDF",
+                    label="📥 Download Official Board Report (PDF)",
                     data=result.board_report,
                     file_name=f"Audit_Report_{req_data.get('request_id')}.md",
                     mime="text/markdown",
-                    help="Download the NIST-compliant audit report for offline review."
+                    help="Download the NIST-compliant audit report for offline review.",
+                    use_container_width=True
                 )
 
             except json.JSONDecodeError:
                 st.error("❌ Invalid JSON format. Please check your input.")
             except Exception as e:
                 st.error(f"Execution Error: {str(e)}")
-            
