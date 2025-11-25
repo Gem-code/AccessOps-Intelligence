@@ -971,16 +971,16 @@ def render_sidebar():
         else:
             st.error("⚠️ API Key Required")
         
-        st.markdown("---")
-        
-     with st.expander("🤖 5-Agent Council"):
-    st.markdown("""
-    <div class="agent-pill">🕵️ Investigator</div>
-    <div class="agent-pill">⚖️ Severity Analyst</div>
-    <div class="agent-pill">🧐 Critic</div>
-    <div class="agent-pill">🚦 Gatekeeper</div>
-    <div class="agent-pill">📊 Narrator</div>
-    """, unsafe_allow_html=True)
+      st.markdown("---")
+    
+    with st.expander("🤖 5-Agent Council"):
+        st.markdown("""
+        <div class="agent-pill">🕵️ Investigator</div>
+        <div class="agent-pill">⚖️ Severity Analyst</div>
+        <div class="agent-pill">🧐 Critic</div>
+        <div class="agent-pill">🚦 Gatekeeper</div>
+        <div class="agent-pill">📊 Narrator</div>
+        """, unsafe_allow_html=True)
         
         st.markdown("---")
         
