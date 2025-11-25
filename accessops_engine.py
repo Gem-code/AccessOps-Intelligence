@@ -1,311 +1,646 @@
-import streamlit as st
-import asyncio
-import json
+"""
+AccessOps Intelligence - Kaggle-Compatible Version
+Fixes the Tool import error by using standard ADK function declarations
+"""
+
 import os
-import io
-import base64
-import matplotlib.pyplot as plt
-from math import pi
-from datetime import datetime
-import nest_asyncio
+import json
+import asyncio
+from typing import Dict, Any, List
+from dataclasses import dataclass
 
-# Import your Logic Engine (Must be in the same folder)
-try:
-    import accessops_engine
-except ImportError:
-    st.error("CRITICAL: 'accessops_engine.py' not found. Please upload it.")
-    st.stop()
-
-# Apply Async Fix
-nest_asyncio.apply()
+from google.adk.agents import LlmAgent
+from google.adk.models.google_llm import Gemini
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types
 
 # ============================================================================
-# 1. VISUAL UTILITIES (The "Swag" Features)
+# SECTION 1: MOCK DATA
 # ============================================================================
 
-def draw_risk_gauge(score):
-    """Draws a speedometer-style gauge for risk score."""
-    # Colors
-    colors = ["#22C55E", "#F59E0B", "#EF4444"] # Green, Yellow, Red
-    
-    fig, ax = plt.subplots(figsize=(4, 2.5), subplot_kw={'projection': 'polar'})
-    fig.patch.set_alpha(0) # Transparent background
-    ax.set_theta_offset(pi)
-    ax.set_theta_direction(-1)
-    
-    # Draw Arcs
-    ax.barh(1, pi/3, left=0, height=0.5, color=colors[0])      # Low
-    ax.barh(1, pi/3, left=pi/3, height=0.5, color=colors[1])   # Med
-    ax.barh(1, pi/3, left=2*pi/3, height=0.5, color=colors[2]) # High
-    
-    # Draw Needle
-    angle = (score / 100) * pi
-    ax.arrow(angle, 0, 0, 1, width=0.05, head_width=0.15, head_length=0.2, fc='white', ec='black')
-    
-    # Clean up chart
-    ax.set_ylim(0, 1.5)
-    ax.set_yticks([])
-    ax.set_xticks([])
-    ax.spines['polar'].set_visible(False)
-    
-    return fig
-
-def generate_pdf_report(request_data, result):
-    """Generates a professional PDF using ReportLab (Simplified from teammate)."""
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.pagesizes import LETTER
-    from reportlab.lib import colors
-    
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=LETTER)
-    width, height = LETTER
-    
-    # Header
-    c.setFillColorRGB(0.1, 0.1, 0.2) # Dark Blue
-    c.rect(0, height-80, width, 80, fill=1, stroke=0)
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(50, height-50, "AccessOps Intelligence Audit")
-    
-    # Content
-    c.setFillColor(colors.black)
-    c.setFont("Helvetica", 12)
-    y = height - 120
-    
-    # 1. Request Details
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "1. Access Request Details")
-    y -= 25
-    c.setFont("Helvetica", 11)
-    for key, val in request_data.items():
-        c.drawString(50, y, f"{key}: {str(val)[:80]}") # Truncate long lines
-        y -= 15
-        
-    y -= 20
-    
-    # 2. Risk Verdict
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "2. Automated Risk Verdict")
-    y -= 25
-    
-    decision = result.get('decision', 'UNKNOWN')
-    score = result.get('risk_score', {}).get('net_risk_score', 0)
-    
-    # Color badge
-    if "DENY" in decision or "REVIEW" in decision:
-        c.setFillColor(colors.red)
-    else:
-        c.setFillColor(colors.green)
-    
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, f"DECISION: {decision}")
-    c.setFillColor(colors.black)
-    y -= 20
-    c.setFont("Helvetica", 12)
-    c.drawString(50, y, f"Net Risk Score: {score}/100")
-    
-    # 3. Audit Trail (Cleaned)
-    y -= 40
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "3. Executive Summary")
-    y -= 25
-    c.setFont("Helvetica", 10)
-    
-    report_text = result.get('board_report', "No report generated.")
-    # Simple text wrap for PDF
-    lines = report_text.split('\n')
-    for line in lines:
-        if "###" in line: continue # Skip markdown headers
-        if y < 50: 
-            c.showPage()
-            y = height - 50
-        c.drawString(50, y, line.replace('*', '').replace('#', ''))
-        y -= 14
-        
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# ============================================================================
-# 2. PAGE CONFIG & STYLING
-# ============================================================================
-
-st.set_page_config(
-    page_title="AccessOps | CISO Dashboard",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Enterprise Dark Mode CSS
-st.markdown("""
-<style>
-    /* Main Background */
-    .stApp { background-color: #0E1117; }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #161B22; }
-    
-    /* Metrics */
-    div[data-testid="metric-container"] {
-        background-color: #21262D;
-        border: 1px solid #30363D;
-        padding: 15px;
-        border-radius: 8px;
+def load_mock_data():
+    """Simulates database lookups"""
+    return {
+        "users": {
+            "svc_finops_auto_bot": {
+                "user_id": "svc_finops_auto_bot",
+                "job_title": "Automated Financial Ops",
+                "department": "Finance Automation",
+                "tenure_months": 12,
+                "identity_type": "ai_agent"
+            }
+        },
+        "entitlements": {
+            "svc_finops_auto_bot": ["finance_read_only", "report_viewer"]
+        },
+        "peer_baseline": {
+            "Automated Financial Ops|Finance Automation": {
+                "typical_access": ["read_only", "report_generation"],
+                "write_access_rate": 0.0
+            }
+        },
+        "policies": {
+            "POL-SOD-001": {
+                "description": "Segregation of Duties: No automated bot shall have Write access to Production Ledger",
+                "resource_pattern": "*general_ledger*",
+                "allowed_roles": ["CFO", "Controller"],
+                "severity": "CRITICAL"
+            }
+        },
+        "activity_logs": {
+            "svc_finops_auto_bot": {
+                "lookback_days": 30,
+                "recent_high_risk_actions": ["API Call: POST /ledger/update (Blocked)"]
+            }
+        }
     }
+
+
+# ============================================================================
+# SECTION 2: TOOL FUNCTIONS (Plain Python - ADK will auto-convert)
+# ============================================================================
+
+def get_user_profile(user_id: str) -> str:
+    """
+    Fetch user's HR profile from identity management system.
     
-    /* Headers */
-    h1, h2, h3 { color: #E6EDF3 !important; font-family: 'Segoe UI', sans-serif; }
+    Args:
+        user_id: Unique identifier for the user/agent
+        
+    Returns:
+        JSON string containing job_title, department, tenure_months
+    """
+    data = load_mock_data()
+    profile = data["users"].get(user_id, {"error": f"User {user_id} not found"})
+    return json.dumps(profile, indent=2)
+
+
+def get_current_entitlements(user_id: str) -> str:
+    """
+    Retrieve all resources currently granted to user.
     
-    /* Success/Error Boxes */
-    .stSuccess { background-color: rgba(35, 134, 54, 0.2); border: 1px solid #238636; }
-    .stError { background-color: rgba(218, 54, 51, 0.2); border: 1px solid #DA3633; }
+    Args:
+        user_id: Unique identifier
+        
+    Returns:
+        JSON string with list of entitlements
+    """
+    data = load_mock_data()
+    entitlements = data["entitlements"].get(user_id, [])
+    return json.dumps({"entitlements": entitlements}, indent=2)
+
+
+def get_peer_baseline(job_title: str, department: str) -> str:
+    """
+    Get statistical baseline of access for similar roles.
     
-    /* Buttons */
-    div.stButton > button {
-        width: 100%;
-        background-color: #238636;
-        color: white;
-        border: none;
-        padding: 12px;
-        font-size: 16px;
-        font-weight: 600;
+    Args:
+        job_title: Job role
+        department: Department name
+        
+    Returns:
+        JSON string with typical_access and write_access_rate
+    """
+    data = load_mock_data()
+    key = f"{job_title}|{department}"
+    baseline = data["peer_baseline"].get(key, {
+        "typical_access": ["read_only"],
+        "write_access_rate": 0.05
+    })
+    return json.dumps(baseline, indent=2)
+
+
+def check_policy_violations(user_id: str, job_title: str, requested_resource_id: str, access_type: str) -> str:
+    """
+    Check if access request violates organizational policies.
+    
+    Returns:
+        JSON string with policy_violations list
+    """
+    data = load_mock_data()
+    violations = []
+    
+    # Check if request violates SoD policy
+    if "general_ledger" in requested_resource_id and access_type == "write":
+        if "bot" in user_id.lower() or "svc_" in user_id:
+            violations.append({
+                "policy_id": "POL-SOD-001",
+                "description": "SoD: No automated bot shall have Write access to Production Ledger",
+                "severity": "CRITICAL",
+                "nist_control": "AC-6 (Least Privilege)",
+                "finding": f"AI Agent '{user_id}' requesting write access to financial system"
+            })
+    
+    return json.dumps({"policy_violations": violations}, indent=2)
+
+
+def get_activity_logs(user_id: str) -> str:
+    """
+    Retrieve recent high-risk actions from SIEM.
+    
+    Returns:
+        JSON string with recent_high_risk_actions
+    """
+    data = load_mock_data()
+    logs = data["activity_logs"].get(user_id, {"recent_high_risk_actions": []})
+    return json.dumps(logs, indent=2)
+
+
+# ============================================================================
+# SECTION 3: AGENT CREATION
+# ============================================================================
+
+def create_agents(llm_model: Gemini) -> Dict[str, LlmAgent]:
+    """Create all agents with proper tool bindings."""
+    
+    # Investigator - calls tools to gather context
+    investigator = LlmAgent(
+        model=llm_model,
+        name="context_investigator",
+        description="Gathers all context signals by calling IAM/SIEM tools",
+        instruction="""
+        You are an enterprise access risk investigator. Your job:
+        
+        1. Call get_user_profile(user_id) to understand WHO is requesting
+        2. Call get_current_entitlements(user_id) to see what they have now
+        3. Call get_peer_baseline(job_title, department) to check if request is normal
+        4. Call check_policy_violations(user_id, job_title, resource_id, access_type) for compliance
+        5. Call get_activity_logs(user_id) to check for anomalies
+        
+        Output JSON with these exact keys:
+        {
+          "user_profile": <dict>,
+          "current_access": <list>,
+          "peer_baseline": <dict>,
+          "policy_violations": <list>,
+          "activity_summary": <dict>,
+          "risk_signals": {
+            "privilege_escalation": <bool>,
+            "outside_peer_norms": <bool>,
+            "policy_violation_found": <bool>,
+            "ai_agent_scope_mismatch": <bool>
+          }
+        }
+        
+        Call ALL tools. Do not skip any.
+        """,
+        tools=[
+            get_user_profile,
+            get_current_entitlements,
+            get_peer_baseline,
+            check_policy_violations,
+            get_activity_logs
+        ]
+    )
+    
+    # Severity Analyst - calculates NIST-based risk score
+    severity_analyst = LlmAgent(
+        model=llm_model,
+        name="severity_analyst",
+        description="Calculates risk scores using NIST 800-53 framework",
+        instruction="""
+        You are a Senior Risk Analyst applying NIST 800-53 AC-6 (Least Privilege).
+        
+        Calculate:
+        1. Inherent Risk (0-100): Base risk of the permission
+           - Admin to Tier-1 = 90-100
+           - Write to restricted = 70-90
+           - Read to confidential = 40-60
+        
+        2. Compensating Factors (each reduces risk):
+           - MFA enabled: -10
+           - Time-bound access: -15
+           - Peer-certified: -10
+        
+        3. Control Failures: Map to NIST codes
+        
+        4. Net Risk = Inherent - Compensating
+        
+        5. Severity: LOW (0-30), MEDIUM (31-60), HIGH (61-85), CRITICAL (86-100)
+        
+        Output JSON with keys: inherent_risk_score, compensating_factors, 
+        control_failures, net_risk_score, severity_level, confidence
+        """,
+        tools=[]
+    )
+    
+    # Critic - challenges the analyst's score
+    critic = LlmAgent(
+        model=llm_model,
+        name="risk_critic",
+        description="Challenges risk assessments to prevent false positives",
+        instruction="""
+        You are the Internal Auditor. Review the Severity Analyst's score.
+        
+        Challenge by asking:
+        - Did they consider emergency/on-call justification?
+        - Are there compensating controls they missed?
+        - Is this too conservative for the system criticality?
+        
+        Output JSON:
+        {
+          "critique_valid": <bool>,
+          "critique_reasoning": <string>,
+          "suggested_adjustment": <string>
+        }
+        
+        Be skeptical but fair.
+        """,
+        tools=[]
+    )
+    
+    # Gatekeeper - makes authorization decision
+    gatekeeper = LlmAgent(
+        model=llm_model,
+        name="gatekeeper",
+        description="Makes final authorization decision",
+        instruction="""
+        You are the Gatekeeper. Decide based on risk score:
+        
+        RULES:
+        - CRITICAL → DENY + Require CISO
+        - HIGH + Policy Violation → PENDING_HUMAN_REVIEW
+        - HIGH + No violations → PENDING_MANAGER_REVIEW
+        - MEDIUM + Controls → AUTO_APPROVE
+        - LOW → AUTO_APPROVE
+        
+        Output JSON:
+        {
+          "decision": "AUTO_APPROVE | PENDING_HUMAN_REVIEW | DENY",
+          "reasoning": <string>,
+          "required_approvers": [<list or null>],
+          "expires_in_hours": <int or null>
+        }
+        """,
+        tools=[]
+    )
+    
+    # Narrator - generates board report
+    narrator = LlmAgent(
+        model=llm_model,
+        name="board_reporter",
+        description="Generates executive summary",
+        instruction="""
+        You are a CISO reporting to the Board.
+        
+        Generate Markdown with this structure:
+        
+        ### 🛡️ Executive Audit Summary
+        [1-2 sentences on governance impact]
+        
+        ### 🚦 Risk Factor Analysis (NIST/COBIT)
+        | Status | Risk Component | Audit Note |
+        | :---: | :--- | :--- |
+        | 🔴 | **Inherent Risk** | Score: X |
+        | 🟡 | **Control Effectiveness** | [factors] |
+        | 🔴 | **Compliance Gaps** | [NIST codes] |
+        | 🛑 | **Net Risk Score** | **[LEVEL]** |
+        
+        ### 📋 Recommended Management Action
+        [Specific steps]
+        
+        Use emojis: 🔴 (high), 🟡 (medium), 🟢 (low), 🛑 (stop), ✅ (approved)
+        """,
+        tools=[]
+    )
+    
+    return {
+        "investigator": investigator,
+        "analyst": severity_analyst,
+        "critic": critic,
+        "gatekeeper": gatekeeper,
+        "narrator": narrator
     }
-    div.stButton > button:hover { background-color: #2EA043; }
-</style>
-""", unsafe_allow_html=True)
+
 
 # ============================================================================
-# 3. SIDEBAR & CONFIG
+# SECTION 4: EXECUTION HELPER
 # ============================================================================
 
-with st.sidebar:
-    # Logo (Using Mermaid Ink for reliability)
-    st.image("https://mermaid.ink/img/pako:eNp1k01vwyAMhv8K8nFK1B942GGn3aZqT9W0uXAhwRqQBEyVqv_9OMm67bI4gPH7gW1swFpaQwG8e9fK0cNlq7S8b7S6q1S9r9W90g8gL1pda_2ilb7R6lGrl8q8aP2i1V_68cW20E_6y8W20u9tC_2gH19sC_2iv1xsK_22bSH8yv-F0A_68cW20C_6y8W20m_bFvpH_xVC_0II_aAfX2wL_aK_XGwr_bZt4de_G0I_6McX20K_6C8X20q_bVv49e-G0A_68cW20C_6y8W20m_bFvpH_xVC_0II_aAfX2wL_aK_XGwr_bZtIfzK_4XQD_rxxd9sC_1i1y62lX7btvDr3w2hH_Tji22hX_SXi22l37Yt9I_-K4R-0I8vtoV-0V8utpV-27bQj_4rhP6FEPpBP77YFvpFf7nYVvpt28KvfzeEftCPL7aFftFfLraVftu20I_-K4R-0I8vtoV-0V8utpV-27aFfvRfIfQvhNAP-vHFttAv-svFttJv2xbCr_xfCP2gH19sC_2iv1xsK_22baF_9F8h9C-E0A_68cW20C_6y8W20m_bFn79uyH0g358sS30i_5ysa3027aFfvRfIfSDfnzxt9pC_wF7tN2G", use_column_width=True)
+async def execute_agent_with_trace(
+    agent: LlmAgent,
+    prompt: str,
+    session_service: InMemorySessionService,
+    session_id: str
+) -> Dict[str, Any]:
+    """Execute agent and return response with execution trace."""
     
-    st.markdown("### ⚙️ System Configuration")
+    runner = Runner(
+        agent=agent,
+        app_name="accessops-intel",
+        session_service=session_service
+    )
     
-    # API Key handling
-    api_key = st.text_input("Google API Key", type="password", value=os.environ.get("GOOGLE_API_KEY", ""))
-    if not api_key:
-        st.warning("⚠️ API Key Required")
-    else:
-        os.environ["GOOGLE_API_KEY"] = api_key # Set for engine to use
-        st.success("🔑 System Secured")
+    content = types.Content(
+        role="user",
+        parts=[types.Part(text=prompt)]
+    )
+    
+    events = runner.run_async(
+        user_id="demo-user",
+        session_id=session_id,
+        new_message=content
+    )
+    
+    tool_calls = []
+    responses = []
+    
+    try:
+        async for event in events:
+            # Track tool calls
+            if hasattr(event, 'tool_calls') and event.tool_calls:
+                for tc in event.tool_calls:
+                    tool_calls.append({
+                        "tool": tc.name if hasattr(tc, 'name') else str(tc),
+                        "args": tc.args if hasattr(tc, 'args') else {}
+                    })
+            
+            # Collect final response
+            if event.is_final_response():
+                if event.content and event.content.parts:
+                    text = "".join(
+                        getattr(p, "text", "") 
+                        for p in event.content.parts 
+                        if hasattr(p, "text")
+                    )
+                    responses.append(text)
+    
+    except Exception as e:
+        print(f"⚠️ Error during agent execution: {e}")
+        return {
+            "response": {"error": str(e)},
+            "tool_calls": tool_calls,
+            "raw_output": ""
+        }
+    
+    # Parse JSON from response
+    final_text = "\n".join(responses)
+    try:
+        result = json.loads(final_text)
+    except json.JSONDecodeError:
+        # Extract JSON from markdown blocks
+        start = final_text.find("{")
+        end = final_text.rfind("}") + 1
+        if start != -1 and end > start:
+            try:
+                result = json.loads(final_text[start:end])
+            except:
+                result = {"raw_text": final_text}
+        else:
+            result = {"raw_text": final_text}
+    
+    return {
+        "response": result,
+        "tool_calls": tool_calls,
+        "raw_output": final_text
+    }
 
-    st.markdown("---")
-    st.markdown("### 📂 Scenario Templates")
+
+# ============================================================================
+# SECTION 5: MAIN PIPELINE
+# ============================================================================
+
+@dataclass
+class PipelineResult:
+    """Container for pipeline results."""
+    request_id: str
+    decision: str
+    risk_score: Dict[str, Any]
+    investigation: Dict[str, Any]
+    board_report: str
+    execution_trace: List[Dict[str, Any]]
+
+
+async def run_pipeline(request_context: Dict[str, Any]) -> PipelineResult:
+    """Main orchestration - executes all agents in sequence."""
     
-    # Scenario Templates (The Teammate's good idea, simplified)
-    scenario = st.radio(
-        "Select a Test Case:",
-        ["Toxic Finance Bot (Critical)", "DevOps Engineer (Low Risk)", "Custom Payload"]
+    print(f"🚀 Starting Pipeline for {request_context['request_id']}")
+    
+    # Initialize session
+    session_service = InMemorySessionService()
+    session_id = f"session-{request_context['request_id']}"
+    await session_service.create_session(
+        app_name="accessops-intel",
+        user_id="demo-user",
+        session_id=session_id
+    )
+    
+    # Configure LLM with explicit API key
+    retry_config = types.HttpRetryOptions(
+        attempts=5,
+        exp_base=2,
+        initial_delay=1,
+        http_status_codes=[429, 500, 503, 504]
+    )
+    
+  # Use Vertex AI instead of API key
+    llm_model = Gemini(
+        model="gemini-2.0-flash-001",
+        vertexai=True,
+        project="accessops-intel",
+        location="us-central1",
+        retry_options=retry_config
+    )
+    
+    agents = create_agents(llm_model)
+    execution_trace = []
+    
+    # PHASE 1: Investigation
+    print("\n🔍 PHASE 1: Context Investigation")
+    investigation_prompt = f"""
+    Investigate this access request:
+    
+    {json.dumps(request_context, indent=2)}
+    
+    User ID: {request_context['user_id']}
+    Resource: {request_context['requested_resource_id']}
+    Access Type: {request_context['access_type']}
+    Job Title: {request_context.get('job_title', 'Unknown')}
+    Department: {request_context.get('department', 'Unknown')}
+    
+    Call ALL tools to gather complete context.
+    """
+    
+    investigation = await execute_agent_with_trace(
+        agent=agents["investigator"],
+        prompt=investigation_prompt,
+        session_service=session_service,
+        session_id=session_id
+    )
+    
+    print(f"   ✓ Tools called: {[tc['tool'] for tc in investigation['tool_calls']]}")
+    execution_trace.append({
+        "phase": "investigation",
+        "agent": "investigator",
+        "tool_calls": investigation["tool_calls"]
+    })
+    
+    # PHASE 2: Risk Scoring
+    print("\n📊 PHASE 2: Risk Scoring (NIST 800-53)")
+    scoring_prompt = f"""
+    Calculate risk for this investigation:
+    
+    Context: {json.dumps(investigation['response'], indent=2)}
+    Request: {json.dumps(request_context, indent=2)}
+    """
+    
+    initial_score = await execute_agent_with_trace(
+        agent=agents["analyst"],
+        prompt=scoring_prompt,
+        session_service=session_service,
+        session_id=session_id  # FIXED: Use same session
+    )
+    
+    print(f"   ✓ Score: {initial_score['response'].get('net_risk_score', 'N/A')}")
+    execution_trace.append({
+        "phase": "scoring",
+        "agent": "severity_analyst",
+        "score": initial_score["response"]
+    })
+    
+    # PHASE 3: Critique
+    print("\n🧐 PHASE 3: Internal Audit Review")
+    critique_prompt = f"""
+    Review this assessment:
+    
+    Investigation: {json.dumps(investigation['response'], indent=2)}
+    Score: {json.dumps(initial_score['response'], indent=2)}
+    """
+    
+    critique = await execute_agent_with_trace(
+        agent=agents["critic"],
+        prompt=critique_prompt,
+        session_service=session_service,
+        session_id=session_id  # FIXED: Use same session
+    )
+    
+    final_score = initial_score["response"]
+    if critique["response"].get("critique_valid"):
+        print(f"   ⚠️ Critique: {critique['response'].get('critique_reasoning', '')[:100]}...")
+    
+    execution_trace.append({
+        "phase": "critique",
+        "agent": "critic",
+        "critique": critique["response"]
+    })
+    
+    # PHASE 4: Gatekeeper
+    print("\n🚦 PHASE 4: Authorization")
+    gatekeeper_prompt = f"""
+    Make authorization decision:
+    
+    Risk: {json.dumps(final_score, indent=2)}
+    Context: {json.dumps(investigation['response'], indent=2)}
+    """
+    
+    decision = await execute_agent_with_trace(
+        agent=agents["gatekeeper"],
+        prompt=gatekeeper_prompt,
+        session_service=session_service,
+        session_id=session_id  # FIXED: Use same session
+    )
+    
+    decision_type = decision["response"].get("decision", "PENDING_HUMAN_REVIEW")
+    print(f"   ✓ Decision: {decision_type}")
+    
+    if decision_type in ["DENY", "PENDING_HUMAN_REVIEW"]:
+        print("   🛑 STOP! Human intervention required")
+    
+    execution_trace.append({
+        "phase": "authorization",
+        "agent": "gatekeeper",
+        "decision": decision["response"]
+    })
+    
+    # PHASE 5: Board Report
+    print("\n📝 PHASE 5: Executive Report")
+    report_prompt = f"""
+    Generate Board report:
+    
+    Investigation: {json.dumps(investigation['response'], indent=2)}
+    Risk: {json.dumps(final_score, indent=2)}
+    Decision: {json.dumps(decision['response'], indent=2)}
+    """
+    
+    report = await execute_agent_with_trace(
+        agent=agents["narrator"],
+        prompt=report_prompt,
+        session_service=session_service,
+        session_id=session_id  # FIXED: Use same session
+    )
+    
+    board_report = report["response"].get("markdown_report", report["raw_output"])
+    print("   ✓ Report generated")
+    
+    return PipelineResult(
+        request_id=request_context["request_id"],
+        decision=decision_type,
+        risk_score=final_score,
+        investigation=investigation["response"],
+        board_report=board_report,
+        execution_trace=execution_trace
     )
 
+
 # ============================================================================
-# 4. MAIN DASHBOARD
+# SECTION 6: MAIN EXECUTION
 # ============================================================================
 
-st.title("🛡️ AccessOps Intelligence")
-st.caption("Agentic Governance for Non-Human Identities")
-
-# Data Prep based on Template
-if scenario == "Toxic Finance Bot (Critical)":
-    default_json = {
-        "request_id": "REQ-TOXIC-001",
+async def main():
+    """Test harness."""
+    
+    toxic_request = {
+        "request_id": "REQ-AI-CRITICAL-001",
         "user_id": "svc_finops_auto_bot",
         "identity_type": "ai_agent",
-        "resource": "prod_general_ledger_rw",
+        "job_title": "Automated Financial Ops",
+        "department": "Finance Automation",
+        "requested_resource_id": "prod_general_ledger_rw",
+        "requested_resource_name": "Production General Ledger",
         "access_type": "write",
-        "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix."
+        "system_criticality": "tier_1",
+        "data_sensitivity": "restricted",
+        "justification": "AI detected anomaly. Requesting write access."
     }
-elif scenario == "DevOps Engineer (Low Risk)":
-    default_json = {
-        "request_id": "REQ-DEVOPS-99",
-        "user_id": "eng_human_user",
-        "identity_type": "human",
-        "resource": "dev_logs_read",
-        "access_type": "read",
-        "justification": "Investigating debug logs in non-prod."
-    }
-else:
-    default_json = {}
-
-# Input Column
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.subheader("📨 Incoming Access Request")
-    request_text = st.text_area("JSON Payload", value=json.dumps(default_json, indent=2), height=250)
     
-    run_btn = st.button("🚨 RUN RISK ASSESSMENT", type="primary")
-
-# Execution Logic
-if run_btn and api_key:
-    try:
-        req_data = json.loads(request_text)
-        
-        with col2:
-            st.subheader("🧠 Agentic Reasoning Trace")
-            status_container = st.status("🕵️ Investigator Agent: Gathering context...", expanded=True)
-            
-            # 1. Run the Engine
-            # We wrap the async call here
-            result = asyncio.run(accessops_engine.run_pipeline(req_data))
-            
-            # 2. Update UI Steps
-            status_container.write("✅ Investigator: Context gathered (IAM, Peers, Logs)")
-            status_container.write(f"✅ Analyst: Inherent Risk Score calculated.")
-            status_container.write("✅ Critic: Audit review complete.")
-            
-            decision = result.decision
-            score = result.risk_score.get('net_risk_score', 0)
-            
-            if "DENY" in decision or "REVIEW" in decision:
-                status_container.update(label="🛑 Gatekeeper: BLOCKED High Risk Request", state="error", expanded=True)
-            else:
-                status_container.update(label="✅ Gatekeeper: Approved", state="complete", expanded=False)
-
-        # ==========================
-        # RESULTS AREA
-        # ==========================
-        st.divider()
-        
-        # Header
-        r_col1, r_col2, r_col3 = st.columns([1, 1, 1])
-        
-        with r_col1:
-            st.metric("Final Decision", decision, delta="STOP" if score > 50 else "GO", delta_color="inverse")
-        
-        with r_col2:
-            st.metric("Net Risk Score", f"{score}/100", delta="Critical" if score > 80 else "Safe", delta_color="inverse")
-            
-        with r_col3:
-            # The Visual Gauge
-            st.pyplot(draw_risk_gauge(score), transparent=True)
-
-        # The Report
-        st.subheader("📄 Executive Audit Artifact (NIST 800-53)")
-        with st.container():
-            st.markdown(result.board_report)
-            
-        # PDF Download
-        pdf_bytes = generate_pdf_report(req_data, {
-            "decision": decision,
+    result = await run_pipeline(toxic_request)
+    
+    # Save outputs
+    with open("final_report.json", "w") as f:
+        json.dump({
+            "request_id": result.request_id,
+            "decision": result.decision,
             "risk_score": result.risk_score,
-            "board_report": result.board_report
-        })
-        
-        st.download_button(
-            label="⬇️ Download Official Audit PDF",
-            data=pdf_bytes,
-            file_name=f"Audit_Report_{req_data.get('request_id')}.pdf",
-            mime="application/pdf"
-        )
+            "investigation": result.investigation,
+            "execution_trace": result.execution_trace
+        }, f, indent=2)
+    
+    with open("board_report.md", "w") as f:
+        f.write(result.board_report)
+    
+    print("\n" + "="*60)
+    print("   🛡️  EXECUTION COMPLETE")
+    print("="*60)
+    print(f"Decision: {result.decision}")
+    print(f"Risk Score: {result.risk_score.get('net_risk_score', 'N/A')}")
+    print(f"\nFiles: final_report.json, board_report.md")
+    
+    # DISPLAY BOARD REPORT IN NOTEBOOK
+    print("\n" + "="*60)
+    print("   📊 BOARD REPORT PREVIEW")
+    print("="*60)
+    
+    try:
+        from IPython.display import display, Markdown
+        display(Markdown(result.board_report))
+    except ImportError:
+        # If not in Jupyter/Kaggle, just print
+        print("\n" + result.board_report)
+    
+    return result
 
-    except Exception as e:
-        st.error(f"Simulation Error: {e}")
-        st.info("Make sure 'accessops_engine.py' is in the same folder.")
 
-elif run_btn and not api_key:
-    st.error("❌ Access Denied: Please enter Google API Key in the sidebar.")
+# Run in Kaggle
+if __name__ == "__main__":
+    asyncio.run(main())
