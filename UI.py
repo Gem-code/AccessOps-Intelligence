@@ -62,7 +62,7 @@ st.markdown("""
     }
     
     .main-title {
-        font-size: 3rem;
+        font-size: 2rem;
         font-weight: 900;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
@@ -117,7 +117,7 @@ st.markdown("""
     }
     
     .metric-value {
-        font-size: 2.5rem;
+        font-size: 1.5rem;
         font-weight: 900;
         color: #667eea;
         margin: 0;
@@ -137,7 +137,7 @@ st.markdown("""
     .alert-critical {
         background: linear-gradient(135deg, #dc143c 0%, #8b0000 100%);
         color: white;
-        padding: 2.5rem;
+        padding: 1.5rem;
         border-radius: 15px;
         text-align: center;
         font-size: 2rem;
@@ -212,7 +212,7 @@ st.markdown("""
     /* ========== RISK SCORE DISPLAY ========== */
     .risk-score-container {
         background: linear-gradient(135deg, #1e2139 0%, #252847 100%);
-        padding: 3rem;
+        padding: 2rem;
         border-radius: 20px;
         text-align: center;
         margin: 2rem 0;
@@ -221,7 +221,7 @@ st.markdown("""
     }
     
     .risk-score-value {
-        font-size: 6rem;
+        font-size: 2rem;
         font-weight: 900;
         line-height: 1;
         margin: 1rem 0;
@@ -287,7 +287,7 @@ st.markdown("""
         color: white;
         font-weight: 900;
         font-size: 1.5rem;
-        padding: 1.5rem 3rem;
+        padding: 1.5rem 2rem;
         border: none;
         border-radius: 15px;
         width: 100%;
