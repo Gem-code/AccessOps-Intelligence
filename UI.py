@@ -1022,54 +1022,44 @@ def render_sidebar():
         return api_key
 
 def render_scenario_input():
-    """Render the toxic scenario input section"""
-st.markdown("## 🧪 Access Request Evaluation")
-
-st.markdown("""
-<div style="background: linear-gradient(135deg, #1e2139 0%, #2a2d4a 100%); 
-            padding: 1.5rem; border-radius: 12px; border: 1px solid #667eea; margin-bottom: 1rem;">
-    <div style="font-size: 1.1rem; color: #667eea; margin-bottom: 0.5rem;">
-        <strong>🎯 Test Case: Rogue Finance Bot</strong>
-    </div>
-    <div style="color: #e2e8f0; font-size: 0.95rem;">
-        🤖 <code>svc_finops_auto_bot</code> requesting <strong style="color: #ff6b35;">WRITE</strong> 
-        access to <code>prod_general_ledger_rw</code> (SoD Violation)
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Expected Risk", "95/100", "CRITICAL")
-col2.metric("Decision", "BLOCKED", "🛑")
-col3.metric("Policy", "POL-SOD-001")
-col4.metric("NIST", "AC-6")
-
-toxic_scenario = {
-    "request_id": "REQ-AI-CRITICAL-001",
-    "user_id": "svc_finops_auto_bot",
-    "identity_type": "ai_agent",
-    "job_title": "Automated Financial Ops",
-    "department": "Finance Automation",
-    "requested_resource_id": "prod_general_ledger_rw",
-    "requested_resource_name": "Production General Ledger",
-    "access_type": "write",
-    "system_criticality": "tier_1",
-    "data_sensitivity": "restricted",
-    "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
-}
-
-with st.expander("⚙️ Advanced: View/Edit Request JSON"):
-    request_json = st.text_area(
-        "Modify JSON to test different scenarios:",
-        value=json.dumps(toxic_scenario, indent=2),
-        height=200,
-        help="Edit this JSON to test different access requests"
-    )
-
-if 'request_json' not in locals():
-    request_json = json.dumps(toxic_scenario, indent=2)
-
-return request_json
+    """Render the scenario input section - SIMPLIFIED VERSION"""
+    st.markdown("## 🧪 Access Request Evaluation")
+    
+    # Summary card
+    st.info("**🎯 Test Case:** Rogue Finance Bot (`svc_finops_auto_bot`) requesting WRITE access to Production General Ledger (SoD Violation)")
+    
+    # Quick stats
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Expected Risk", "95/100")
+    col2.metric("Decision", "BLOCKED")
+    col3.metric("Policy", "POL-SOD-001")
+    col4.metric("NIST", "AC-6")
+    
+    # JSON in expander (collapsed by default)
+    toxic_scenario = {
+        "request_id": "REQ-AI-CRITICAL-001",
+        "user_id": "svc_finops_auto_bot",
+        "identity_type": "ai_agent",
+        "job_title": "Automated Financial Ops",
+        "department": "Finance Automation",
+        "requested_resource_id": "prod_general_ledger_rw",
+        "requested_resource_name": "Production General Ledger",
+        "access_type": "write",
+        "system_criticality": "tier_1",
+        "data_sensitivity": "restricted",
+        "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
+    }
+    
+    with st.expander("⚙️ Advanced: View/Edit Request JSON", expanded=False):
+        request_json = st.text_area(
+            "Modify to test different scenarios:",
+            value=json.dumps(toxic_scenario, indent=2),
+            height=200
+        )
+        return request_json
+    
+    # If expander closed, return default JSON
+    return json.dumps(toxic_scenario, indent=2)
 ```
 
 def render_results(result: PipelineResult):
