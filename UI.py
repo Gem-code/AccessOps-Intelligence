@@ -221,12 +221,10 @@ st.markdown("""
     }
     
     .risk-score-value {
-        font-size: 6rem;
-        font-weight: 900;
-        line-height: 1;
-        margin: 1rem 0;
-        text-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
-    }
+    font-size: clamp(3rem, 8vw, 6rem);  # ← Responsive: adjusts to screen width
+    font-weight: 900;
+    line-height: 1;
+}
     
     .risk-critical { color: #dc143c; }
     .risk-high { color: #ff6b35; }
@@ -975,14 +973,14 @@ def render_sidebar():
         
         st.markdown("---")
         
-        st.markdown("## 🤖 Agent Council")
-        st.markdown("""
-        <div class="agent-pill">🕵️ Investigator</div>
-        <div class="agent-pill">⚖️ Severity Analyst</div>
-        <div class="agent-pill">🧐 Critic</div>
-        <div class="agent-pill">🚦 Gatekeeper</div>
-        <div class="agent-pill">📊 Narrator</div>
-        """, unsafe_allow_html=True)
+     with st.expander("🤖 5-Agent Council"):
+    st.markdown("""
+    <div class="agent-pill">🕵️ Investigator</div>
+    <div class="agent-pill">⚖️ Severity Analyst</div>
+    <div class="agent-pill">🧐 Critic</div>
+    <div class="agent-pill">🚦 Gatekeeper</div>
+    <div class="agent-pill">📊 Narrator</div>
+    """, unsafe_allow_html=True)
         
         st.markdown("---")
         
