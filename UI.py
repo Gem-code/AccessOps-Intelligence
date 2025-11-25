@@ -714,7 +714,7 @@ async def execute_agent_with_trace(
     async for event in runner.run_async(
         user_id="ciso-user",
         session_id=session_id,
-        new_message=prompt
+        new_message={"text": prompt}
     ):
         if hasattr(event, 'tool_name') and event.tool_name:
             tool_calls.append({
