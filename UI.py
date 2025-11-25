@@ -1025,7 +1025,6 @@ def render_scenario_input():
     """Render the toxic scenario input section"""
 st.markdown("## 🧪 Access Request Evaluation")
 
-# Summary card (always visible)
 st.markdown("""
 <div style="background: linear-gradient(135deg, #1e2139 0%, #2a2d4a 100%); 
             padding: 1.5rem; border-radius: 12px; border: 1px solid #667eea; margin-bottom: 1rem;">
@@ -1039,14 +1038,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Quick stats in 4 columns
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Expected Risk", "95/100", "CRITICAL")
 col2.metric("Decision", "BLOCKED", "🛑")
 col3.metric("Policy", "POL-SOD-001")
 col4.metric("NIST", "AC-6")
 
-# Collapsible JSON editor
 with st.expander("⚙️ Advanced: View/Edit Request JSON"):
     toxic_scenario = {
         "request_id": "REQ-AI-CRITICAL-001",
@@ -1069,7 +1066,6 @@ with st.expander("⚙️ Advanced: View/Edit Request JSON"):
         help="Edit this JSON to test different access requests"
     )
 else:
-    # If expander is closed, use default
     toxic_scenario = {
         "request_id": "REQ-AI-CRITICAL-001",
         "user_id": "svc_finops_auto_bot",
@@ -1087,54 +1083,6 @@ else:
 
 return request_json
 ```
-
-## ✅ WHAT THIS DOES:
-
-**Before (your current code):**
-- Giant 400px tall JSON box taking up whole screen
-- Two-column layout (cramped)
-- Metric cards with lots of HTML
-- Total height: ~600-700px
-
-**After (new code):**
-- Clean summary card at top (100px)
-- 4 compact metrics (80px)
-- JSON hidden in expander (collapsed by default)
-- Total height: **~200px** (70% smaller!)
-
-## 🎯 VISUAL COMPARISON:
-
-**BEFORE:**
-```
-┌─────────────────────────────────────┐
-│ 📋 Pre-Loaded: Toxic...            │
-│ ┌─────────────┐  ┌──────────────┐  │
-│ │   GIANT     │  │  Expected    │  │
-│ │   JSON      │  │  Outcome     │  │
-│ │   BOX       │  │  Cards       │  │
-│ │   400px     │  │              │  │
-│ │   TALL      │  │  🛑 BLOCKED  │  │
-│ │             │  │  95/100      │  │
-│ │             │  │  POL-SOD-001 │  │
-│ │             │  │  AC-6        │  │
-│ └─────────────┘  └──────────────┘  │
-└─────────────────────────────────────┘
-Takes up entire screen! ❌
-```
-
-**AFTER:**
-```
-┌─────────────────────────────────────┐
-│ 🎯 Test Case: Rogue Finance Bot     │
-│ svc_finops_auto_bot → WRITE → GL   │
-├─────────┬─────────┬─────────┬──────┤
-│ Risk:95 │ BLOCKED │ POL-SOD │ AC-6 │
-├─────────┴─────────┴─────────┴──────┤
-│ ⚙️ Advanced: View/Edit JSON ▶      │ ← Click to expand
-├─────────────────────────────────────┤
-│ [🚨 RUN SECURITY AUDIT BUTTON]      │
-└─────────────────────────────────────┘
-Fits on screen! ✅
 
 def render_results(result: PipelineResult):
     """Render the dramatic results section"""
