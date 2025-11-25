@@ -1,4 +1,14 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.34.0
+# Streamlit for web UI
+streamlit==1.29.0
+
+# Google ADK for agent orchestration
 google-adk[a2a]>=0.1.0
-google-cloud-aiplatform>=1.38.0
+
+# Google Generative AI
+google-generativeai>=0.3.0
+
+# Async support
+asyncio>=3.4.3
+
+# Data handling
+pandas>=2.0.0
