@@ -1023,66 +1023,118 @@ def render_sidebar():
 
 def render_scenario_input():
     """Render the toxic scenario input section"""
-    st.markdown("## 🧪 Access Request Evaluation")
+st.markdown("## 🧪 Access Request Evaluation")
+
+# Summary card (always visible)
+st.markdown("""
+<div style="background: linear-gradient(135deg, #1e2139 0%, #2a2d4a 100%); 
+            padding: 1.5rem; border-radius: 12px; border: 1px solid #667eea; margin-bottom: 1rem;">
+    <div style="font-size: 1.1rem; color: #667eea; margin-bottom: 0.5rem;">
+        <strong>🎯 Test Case: Rogue Finance Bot</strong>
+    </div>
+    <div style="color: #e2e8f0; font-size: 0.95rem;">
+        🤖 <code>svc_finops_auto_bot</code> requesting <strong style="color: #ff6b35;">WRITE</strong> 
+        access to <code>prod_general_ledger_rw</code> (SoD Violation)
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Quick stats in 4 columns
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Expected Risk", "95/100", "CRITICAL")
+col2.metric("Decision", "BLOCKED", "🛑")
+col3.metric("Policy", "POL-SOD-001")
+col4.metric("NIST", "AC-6")
+
+# Collapsible JSON editor
+with st.expander("⚙️ Advanced: View/Edit Request JSON"):
+    toxic_scenario = {
+        "request_id": "REQ-AI-CRITICAL-001",
+        "user_id": "svc_finops_auto_bot",
+        "identity_type": "ai_agent",
+        "job_title": "Automated Financial Ops",
+        "department": "Finance Automation",
+        "requested_resource_id": "prod_general_ledger_rw",
+        "requested_resource_name": "Production General Ledger",
+        "access_type": "write",
+        "system_criticality": "tier_1",
+        "data_sensitivity": "restricted",
+        "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
+    }
     
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("### 📋 Pre-Loaded: Toxic Super-Scenario")
-        st.info("**Scenario:** Rogue Finance Bot attempting write access to Production General Ledger (SoD Violation)")
-        
-        toxic_scenario = {
-            "request_id": "REQ-AI-CRITICAL-001",
-            "user_id": "svc_finops_auto_bot",
-            "identity_type": "ai_agent",
-            "job_title": "Automated Financial Ops",
-            "department": "Finance Automation",
-            "requested_resource_id": "prod_general_ledger_rw",
-            "requested_resource_name": "Production General Ledger",
-            "access_type": "write",
-            "system_criticality": "tier_1",
-            "data_sensitivity": "restricted",
-            "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
-        }
-        
-        request_json = st.text_area(
-            "Request Payload (JSON):",
-            value=json.dumps(toxic_scenario, indent=2),
-            height=400,
-            help="Modify this JSON to test different scenarios"
-        )
-    
-    with col2:
-        st.markdown("### 🎯 Expected Outcome")
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value" style="color: #dc143c;">🛑</div>
-            <div class="metric-label">Decision: BLOCKED</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value" style="font-size: 2rem;">95/100</div>
-            <div class="metric-label">Risk Score: CRITICAL</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value" style="font-size: 1.5rem;">POL-SOD-001</div>
-            <div class="metric-label">Policy Violated</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="metric-card">
-            <div class="metric-value" style="font-size: 1.5rem;">AC-6</div>
-            <div class="metric-label">NIST Control Failed</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    return request_json
+    request_json = st.text_area(
+        "Modify JSON to test different scenarios:",
+        value=json.dumps(toxic_scenario, indent=2),
+        height=200,
+        help="Edit this JSON to test different access requests"
+    )
+else:
+    # If expander is closed, use default
+    toxic_scenario = {
+        "request_id": "REQ-AI-CRITICAL-001",
+        "user_id": "svc_finops_auto_bot",
+        "identity_type": "ai_agent",
+        "job_title": "Automated Financial Ops",
+        "department": "Finance Automation",
+        "requested_resource_id": "prod_general_ledger_rw",
+        "requested_resource_name": "Production General Ledger",
+        "access_type": "write",
+        "system_criticality": "tier_1",
+        "data_sensitivity": "restricted",
+        "justification": "AI detected anomaly. Requesting write access to rectify discrepancies."
+    }
+    request_json = json.dumps(toxic_scenario, indent=2)
+
+return request_json
+```
+
+## ✅ WHAT THIS DOES:
+
+**Before (your current code):**
+- Giant 400px tall JSON box taking up whole screen
+- Two-column layout (cramped)
+- Metric cards with lots of HTML
+- Total height: ~600-700px
+
+**After (new code):**
+- Clean summary card at top (100px)
+- 4 compact metrics (80px)
+- JSON hidden in expander (collapsed by default)
+- Total height: **~200px** (70% smaller!)
+
+## 🎯 VISUAL COMPARISON:
+
+**BEFORE:**
+```
+┌─────────────────────────────────────┐
+│ 📋 Pre-Loaded: Toxic...            │
+│ ┌─────────────┐  ┌──────────────┐  │
+│ │   GIANT     │  │  Expected    │  │
+│ │   JSON      │  │  Outcome     │  │
+│ │   BOX       │  │  Cards       │  │
+│ │   400px     │  │              │  │
+│ │   TALL      │  │  🛑 BLOCKED  │  │
+│ │             │  │  95/100      │  │
+│ │             │  │  POL-SOD-001 │  │
+│ │             │  │  AC-6        │  │
+│ └─────────────┘  └──────────────┘  │
+└─────────────────────────────────────┘
+Takes up entire screen! ❌
+```
+
+**AFTER:**
+```
+┌─────────────────────────────────────┐
+│ 🎯 Test Case: Rogue Finance Bot     │
+│ svc_finops_auto_bot → WRITE → GL   │
+├─────────┬─────────┬─────────┬──────┤
+│ Risk:95 │ BLOCKED │ POL-SOD │ AC-6 │
+├─────────┴─────────┴─────────┴──────┤
+│ ⚙️ Advanced: View/Edit JSON ▶      │ ← Click to expand
+├─────────────────────────────────────┤
+│ [🚨 RUN SECURITY AUDIT BUTTON]      │
+└─────────────────────────────────────┘
+Fits on screen! ✅
 
 def render_results(result: PipelineResult):
     """Render the dramatic results section"""
