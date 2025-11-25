@@ -706,7 +706,7 @@ async def execute_agent_with_trace(
     session_id: str
 ) -> Dict[str, Any]:
     """Execute agent and capture full trace"""
-    runner = Runner(agent=agent, session_service=session_service)
+    runner = Runner(agent=agent, session_service=session_service, app_name="accessops-intel")
     
     tool_calls = []
     raw_output = ""
