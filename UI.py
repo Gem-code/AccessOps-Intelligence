@@ -955,23 +955,23 @@ def render_header():
 
 def render_sidebar():
     """Render the professional sidebar"""
-    with st.sidebar:
-        st.markdown("## 🔑 Authentication")
-        
-        api_key = st.text_input(
-            "Google Gemini API Key",
-            type="password",
-            value=os.environ.get("GOOGLE_API_KEY", ""),
-            help="🔗 Get your key at: https://makersuite.google.com/app/apikey"
-        )
-        
-        if api_key:
-            os.environ["GOOGLE_API_KEY"] = api_key
-            st.success("✅ API Key Configured")
-        else:
-            st.error("⚠️ API Key Required")
-        
-      st.markdown("---")
+with st.sidebar:
+    st.markdown("## 🔑 Authentication")
+    
+    api_key = st.text_input(
+        "Google Gemini API Key",
+        type="password",
+        value=os.environ.get("GOOGLE_API_KEY", ""),
+        help="🔗 Get your key at: https://makersuite.google.com/app/apikey"
+    )
+    
+    if api_key:
+        os.environ["GOOGLE_API_KEY"] = api_key
+        st.success("✅ API Key Configured")
+    else:
+        st.error("⚠️ API Key Required")
+    
+    st.markdown("---")
     
     with st.expander("🤖 5-Agent Council"):
         st.markdown("""
@@ -981,31 +981,31 @@ def render_sidebar():
         <div class="agent-pill">🚦 Gatekeeper</div>
         <div class="agent-pill">📊 Narrator</div>
         """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        st.markdown("## 📊 System Metrics")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Agents", "5", "Active")
-            st.metric("Tools", "5", "Integrated")
-        with col2:
-            st.metric("Latency", "~5s", "Real-time")
-            st.metric("Framework", "NIST", "800-53")
-        
-        st.markdown("---")
-        
-        st.markdown("## 🏆 Competition")
-        st.markdown("""
-        **Google AI Agents Capstone**  
-        Enterprise Security Track
-        
-        **Innovation:**  
-        Reflexive Critique Loop
-        
-        **Impact:**  
-        97% Cost Reduction
-        """)
+    
+    st.markdown("---")
+    
+    st.markdown("## 📊 System Metrics")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Agents", "5", "Active")
+        st.metric("Tools", "5", "Integrated")
+    with col2:
+        st.metric("Latency", "~5s", "Real-time")
+        st.metric("Framework", "NIST", "800-53")
+    
+    st.markdown("---")
+    
+    st.markdown("## 🏆 Competition")
+    st.markdown("""
+    **Google AI Agents Capstone**  
+    Enterprise Security Track
+    
+    **Innovation:**  
+    Reflexive Critique Loop
+    
+    **Impact:**  
+    97% Cost Reduction
+    """)
         
         st.markdown("---")
         
