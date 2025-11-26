@@ -408,14 +408,14 @@ with input_col:
     st.markdown('<div class="step-header">📨 Step 3 – Review / Edit JSON Payload</div>', unsafe_allow_html=True)
     st.caption("This JSON is passed into the ADK / Vortex agentic pipeline.")
     
-    # Monaco editor with JSON syntax highlighting
+    # Monaco editor with JSON syntax highlighting (no key argument)
     request_text = st_monaco(
         value=json.dumps(default_json, indent=2),
         language="json",
         theme="vs-light",
         height="280px",
-        key="json_editor",
     )
+
     
     run_col, hint_col = st.columns([2, 1])
     with run_col:
