@@ -191,10 +191,11 @@ def format_badge(label: str, emoji: str) -> str:
     return f'<span class="pill-badge">{emoji} {label}</span>'
 
 
-def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) -> bytes:
+def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     """
-    Generate a color PDF for the Board Report, with a traffic-light style risk banner.
-    Uses shapes (not emojis) so colors always render.
+    Render the board_report markdown AS-IS into a PDF, so the
+    PDF content matches the dashboard. Only extra decoration
+    is a small traffic-light row at the top.
     """
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
@@ -205,54 +206,33 @@ def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) 
     width, height = LETTER
     y = height - 72
 
-    # --- Title ---
+    # Title line (mirrors dashboard heading)
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.black)
     c.drawString(72, y, title[:90])
-    y -= 26
+    y -= 24
 
-    # --- Traffic light icons (three circles) ---
+    # Small traffic-light row (visual only)
     radius = 5
-    x0 = 72
     c.setStrokeColor(colors.black)
-
     c.setFillColor(colors.green)
-    c.circle(x0, y + 4, radius, fill=1)
+    c.circle(72, y + 4, radius, fill=1)
     c.setFillColor(colors.yellow)
-    c.circle(x0 + 16, y + 4, radius, fill=1)
+    c.circle(72 + 16, y + 4, radius, fill=1)
     c.setFillColor(colors.red)
-    c.circle(x0 + 32, y + 4, radius, fill=1)
+    c.circle(72 + 32, y + 4, radius, fill=1)
+    y -= 18
 
-    # --- Risk banner text + color based on score ---
-    if score <= 30:
-        banner_text = "LOW RISK – Within policy guardrails"
-        banner_color = colors.green
-    elif score <= 60:
-        banner_text = "MODERATE RISK – Monitor and log"
-        banner_color = colors.orange
-    elif score <= 85:
-        banner_text = "HIGH RISK – Strong controls / approvals required"
-        banner_color = colors.red
-    else:
-        banner_text = "CRITICAL RISK – Block / escalate immediately"
-        banner_color = colors.red
-
-    banner_text = f"{banner_text}  |  Decision: {decision}"
-
-    c.setFont("Helvetica-Bold", 11)
-    c.setFillColor(banner_color)
-    c.drawString(72 + 48, y, banner_text[:110])
-    y -= 28
-
-    # --- Body: markdown-style board_report text ---
+    # Body: print markdown text exactly as returned by the agent
     c.setFont("Helvetica", 10)
     c.setFillColor(colors.black)
 
-    for raw_line in report_text.splitlines():
-        line = raw_line.replace("\t", "    ")
-        if not line.strip():
+    for raw_line in board_report_md.splitlines():
+        line = raw_line.rstrip()
+        if not line:
             y -= 10
         else:
+            # simple wrapping at ~110 chars
             while len(line) > 110:
                 c.drawString(72, y, line[:110])
                 line = line[110:]
@@ -276,7 +256,6 @@ def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) 
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
-
 
 def run_pipeline_sync(request_context: Dict[str, Any]):
     """
@@ -459,9 +438,15 @@ if run_btn:
             try:
                 result = run_pipeline_sync(req_data)
             except Exception as e:
-                st.session_state["result"] = None
-                st.session_state["req_data"] = None
-                st.session_state["error_msg"] = f"Execution Error from backend: {e}"
+            st.session_state["result"] = None
+            st.session_state["req_data"] = None
+            st.session_state["error_msg"] = (
+                "⚠️ Something went wrong while running the risk engine. "
+                "This is a system issue, not your request. "
+                "If it keeps happening, please share this code with the engineering team:\n\n"
+                f"`{type(e).__name__}: {e}`"
+            )
+
             else:
                 st.session_state["result"] = result
                 st.session_state["req_data"] = req_data
@@ -592,11 +577,10 @@ with output_col:
 
             # Board Report PDF (with color + traffic lights)
             pdf_bytes = create_pdf_bytes(
-                board_report,
-                f"AccessOps Board Report – {report_id}",
-                float(score),
-                decision,
+            board_report,
+            f"AccessOps Board Report – {report_id}",
             )
+
 
             # Audit Log JSON wrapped in Markdown
             audit_log = {
@@ -632,7 +616,11 @@ with output_col:
             st.markdown("#### 🚦 Risk Factor Analysis")
             risk_signals = investigation.get("risk_signals", {}) or {}
             if not isinstance(risk_signals, dict) or not risk_signals:
-                st.info("No structured `risk_signals` field returned. Showing raw investigation instead.")
+                st.info(
+                    "The engine did not return structured risk signals for this run. "
+                    "Showing the full investigation details instead."
+                )
+
                 st.json(investigation)
             else:
                 col_a, col_b = st.columns(2)
@@ -699,7 +687,11 @@ with output_col:
         with trace_tab:
             st.markdown("#### 🧬 ADK Agent Trace")
             if not execution_trace:
-                st.info("No `execution_trace` list returned from engine.")
+                st.info(
+                    "No detailed agent trace was returned for this request. "
+                    "You can still review the decision, risk score and board report."
+                )
+
             else:
                 for i, phase in enumerate(execution_trace, start=1):
                     phase_name = phase.get("phase", "unknown")
