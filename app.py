@@ -185,7 +185,7 @@ def format_badge(label: str, emoji: str) -> str:
 
 def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) -> bytes:
     """
-    Generate a color PDF for the Board Report, with a traffic-light risk banner.
+    Generate a color PDF for the Board Report, with a traffic-light style risk banner.
     """
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
@@ -196,14 +196,13 @@ def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) 
     width, height = LETTER
     y = height - 72
 
-    # --- Title (black) ---
+    # --- Title ---
     c.setFont("Helvetica-Bold", 14)
     c.setFillColor(colors.black)
     c.drawString(72, y, title[:90])
     y -= 26
 
-    # --- Traffic light banner (emoji + color based on score) ---
-    # Simple thresholds – adjust if you prefer different cutoffs
+    # --- Traffic light banner based on score ---
     if score <= 30:
         banner_text = "🟢 LOW RISK – Within policy guardrails"
         banner_color = colors.green
@@ -217,15 +216,14 @@ def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) 
         banner_text = "🔴 CRITICAL RISK – Block / escalate immediately"
         banner_color = colors.red
 
-    # Optionally include decision in banner
     banner_text = f"{banner_text}  |  Decision: {decision}"
 
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(banner_color)
-    c.drawString(72, y, banner_text[:100])
+    c.drawString(72, y, banner_text[:110])
     y -= 24
 
-    # --- Body content in black (the markdown-style board_report text) ---
+    # --- Body: markdown-style board_report text ---
     c.setFont("Helvetica", 10)
     c.setFillColor(colors.black)
 
@@ -271,7 +269,6 @@ def run_pipeline_sync(request_context: Dict[str, Any]):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(accessops_engine.run_pipeline(request_context))
 
-
 # ---------------------------------------------------------------------
 # 3. SIDEBAR – STEP 1: RUNTIME CONFIG
 # ---------------------------------------------------------------------
@@ -313,7 +310,7 @@ with st.sidebar:
         "2. Pick a scenario & inspect JSON.\n"
         "3. Run Security Audit.\n"
         "4. Use tabs: Executive, Signals, Context, Agent Trace, Raw JSON.\n"
-        "5. Export board-ready report."
+        "5. Export board-ready report and audit log."
     )
 
 # ---------------------------------------------------------------------
@@ -342,7 +339,7 @@ st.markdown("")
 input_col, output_col = st.columns([1.05, 1.45])
 
 with input_col:
-    # Step 2 – Scenario (DevOps first, Critical second)
+    # Step 2 – Scenario
     st.markdown('<div class="step-header">📝 Step 2 – Select Scenario</div>', unsafe_allow_html=True)
     scenario = st.radio(
         "Select a test case:",
@@ -540,47 +537,45 @@ if run_btn:
                         st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
                         st.markdown(board_report, unsafe_allow_html=True)
 
-                    report_id = req_data.get("request_id", "UNKNOWN")
+                        # --- Download buttons: Audit Log + Board Report PDF ---
+                        report_id = req_data.get("request_id", "UNKNOWN")
 
-                    # --- Board Report PDF (with color + traffic lights) ---
-                    pdf_bytes = create_pdf_bytes(
-                        board_report,
-                        f"Access Risk Board Report – {report_id}",
-                        float(score),
-                        decision,
-                    )
-                    
-                    # --- Audit Log Report as markdown-wrapped JSON ---
-                    audit_log = {
-                        "request": req_data,
-                        "decision": decision,
-                        "risk_score": risk_score_obj,
-                        "investigation": investigation,
-                        "execution_trace": execution_trace,
-                    }
-                    
-                    audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
-                    audit_log_bytes = audit_log_md.encode("utf-8")
-                    
-                    dl_col1, dl_col2 = st.columns(2)
-                    with dl_col1:
-                        st.download_button(
-                            label="📊 Board Report (PDF)",
-                            data=pdf_bytes,
-                            file_name=f"Board_Report_{report_id}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True,
-                        )
-                    with dl_col2:
-                        st.download_button(
-                            label="📜 Audit Log Report (JSON markdown)",
-                            data=audit_log_bytes,
-                            file_name=f"Audit_Log_Report_{report_id}.md",
-                            mime="text/markdown",
-                            use_container_width=True,
+                        # Board Report PDF (with color + traffic lights)
+                        pdf_bytes = create_pdf_bytes(
+                            board_report,
+                            f"AccessOps Board Report – {report_id}",
+                            float(score),
+                            decision,
                         )
 
+                        # Audit Log JSON wrapped in Markdown
+                        audit_log = {
+                            "request": req_data,
+                            "decision": decision,
+                            "risk_score": risk_score_obj,
+                            "investigation": investigation,
+                            "execution_trace": execution_trace,
+                        }
+                        audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
+                        audit_log_bytes = audit_log_md.encode("utf-8")
 
+                        dl_col1, dl_col2 = st.columns(2)
+                        with dl_col1:
+                            st.download_button(
+                                label="📄 Audit Log Report (Markdown)",
+                                data=audit_log_bytes,
+                                file_name=f"Audit_Log_{report_id}.md",
+                                mime="text/markdown",
+                                use_container_width=True,
+                            )
+                        with dl_col2:
+                            st.download_button(
+                                label="📊 Board Report (PDF)",
+                                data=pdf_bytes,
+                                file_name=f"Board_Report_{report_id}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True,
+                            )
 
                     # Risk Signals
                     with signals_tab:
