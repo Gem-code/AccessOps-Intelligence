@@ -540,27 +540,47 @@ if run_btn:
                         st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
                         st.markdown(board_report, unsafe_allow_html=True)
 
-                        report_id = req_data.get("request_id", "UNKNOWN")
-                        md_bytes = board_report.encode("utf-8")
-                        pdf_bytes = create_pdf_bytes(board_report, f"Access Risk Audit – {report_id}")
+                    report_id = req_data.get("request_id", "UNKNOWN")
 
-                        dl_col1, dl_col2 = st.columns(2)
-                        with dl_col1:
-                            st.download_button(
-                                label="📥 Download Board Report (Markdown)",
-                                data=md_bytes,
-                                file_name=f"Audit_Report_{report_id}.md",
-                                mime="text/markdown",
-                                use_container_width=True,
-                            )
-                        with dl_col2:
-                            st.download_button(
-                                label="📄 Download Board Packet (PDF)",
-                                data=pdf_bytes,
-                                file_name=f"Audit_Report_{report_id}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True,
-                            )
+                    # --- Board Report PDF (with color + traffic lights) ---
+                    pdf_bytes = create_pdf_bytes(
+                        board_report,
+                        f"Access Risk Board Report – {report_id}",
+                        float(score),
+                        decision,
+                    )
+                    
+                    # --- Audit Log Report as markdown-wrapped JSON ---
+                    audit_log = {
+                        "request": req_data,
+                        "decision": decision,
+                        "risk_score": risk_score_obj,
+                        "investigation": investigation,
+                        "execution_trace": execution_trace,
+                    }
+                    
+                    audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
+                    audit_log_bytes = audit_log_md.encode("utf-8")
+                    
+                    dl_col1, dl_col2 = st.columns(2)
+                    with dl_col1:
+                        st.download_button(
+                            label="📊 Board Report (PDF)",
+                            data=pdf_bytes,
+                            file_name=f"Board_Report_{report_id}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                        )
+                    with dl_col2:
+                        st.download_button(
+                            label="📜 Audit Log Report (JSON markdown)",
+                            data=audit_log_bytes,
+                            file_name=f"Audit_Log_Report_{report_id}.md",
+                            mime="text/markdown",
+                            use_container_width=True,
+                        )
+
+
 
                     # Risk Signals
                     with signals_tab:
