@@ -145,7 +145,6 @@ if "result" not in st.session_state:
     st.session_state["result"] = None
     st.session_state["req_data"] = None
     st.session_state["error_msg"] = None
-    st.session_state["last_logged_request_id"] = None
 
 # ---------------------------------------------------------------------
 # 3. HELPERS
@@ -233,7 +232,6 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
         if not line:
             y -= 10
         else:
-            # simple wrapping at ~110 chars
             while len(line) > 110:
                 c.drawString(72, y, line[:110])
                 line = line[110:]
@@ -270,41 +268,6 @@ def run_pipeline_sync(request_context: Dict[str, Any]):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(accessops_engine.run_pipeline(request_context))
-
-
-def log_decision_to_firestore(req_data, risk_score_obj, decision):
-    """
-    Optional feedback loop: log each decision into Firestore.
-    This only runs if FIRESTORE_PROJECT_ID is set and the library is installed.
-    If anything fails, we fail silently (no impact on UI).
-    """
-    project_id = os.getenv("FIRESTORE_PROJECT_ID")
-    if not project_id:
-        return
-
-    try:
-        from google.cloud import firestore  # type: ignore
-    except ImportError:
-        return
-
-    try:
-        db = firestore.Client(project=project_id)
-        doc = {
-            "request_id": req_data.get("request_id"),
-            "user_id": req_data.get("user_id"),
-            "resource_id": req_data.get("requested_resource_id"),
-            "decision": decision,
-            "severity": risk_score_obj.get("severity_level"),
-            "net_risk_score": risk_score_obj.get("net_risk_score"),
-            "identity_type": req_data.get("identity_type"),
-            "timestamp": datetime.now(timezone.utc),
-        }
-        if not doc["request_id"]:
-            return
-        db.collection("accessops_decisions").document(doc["request_id"]).set(doc, merge=True)
-    except Exception:
-        # We don't surface Firestore issues to non-technical users
-        return
 
 
 # ---------------------------------------------------------------------
@@ -369,7 +332,6 @@ with header_right:
     st.markdown(format_badge(now_str, "⏱️"), unsafe_allow_html=True)
     st.markdown(format_badge("NIST 800-53 • AC-6 • SoD", "📚"), unsafe_allow_html=True)
 
-# Why this matters (aligned with writeup)
 with st.expander("🧩 Why this matters"):
     st.markdown(
         "- Most modern breaches involve some form of identity or access failure.\n"
@@ -556,7 +518,7 @@ with output_col:
             unsafe_allow_html=True,
         )
 
-        # ---------- NEW: Multi-Agent Status summary ----------
+        # ---------- Multi-Agent Status summary ----------
         agent_counts: Dict[str, int] = {}
         for phase in execution_trace:
             agent_name = phase.get("agent") or phase.get("phase") or "unknown_agent"
@@ -580,13 +542,6 @@ with output_col:
                         f"<span class='caption-sm'>{count} events</span>",
                         unsafe_allow_html=True,
                     )
-
-        # Log this decision once per request_id (optional Firestore)
-        last_logged = st.session_state.get("last_logged_request_id")
-        current_id = req_data.get("request_id")
-        if current_id and current_id != last_logged:
-            log_decision_to_firestore(req_data, risk_score_obj, decision)
-            st.session_state["last_logged_request_id"] = current_id
 
         # ---------------------- TABS (Step 5) ---------------------------
         st.markdown("")
@@ -642,13 +597,11 @@ with output_col:
             # --- Download buttons: Board Report first, then Audit Log ---
             report_id = req_data.get("request_id", "UNKNOWN")
 
-            # Board Report PDF (matches dashboard text)
             pdf_bytes = create_pdf_bytes(
                 board_report,
                 f"AccessOps Board Report – {report_id}",
             )
 
-            # Audit Log JSON wrapped in Markdown
             audit_log = {
                 "request": req_data,
                 "decision": decision,
@@ -676,31 +629,6 @@ with output_col:
                     mime="text/markdown",
                     use_container_width=True,
                 )
-
-            # Optional: simple learning summary if Firestore is configured
-            try:
-                from google.cloud import firestore  # type: ignore
-
-                project_id = os.getenv("FIRESTORE_PROJECT_ID")
-                if project_id:
-                    db = firestore.Client(project=project_id)
-                    docs = list(db.collection("accessops_decisions").limit(200).stream())
-                    total = len(docs)
-                    if total > 0:
-                        denied = sum(
-                            1 for d in docs if str(d.to_dict().get("decision", "")).startswith("DENY")
-                        )
-                        pending = sum(
-                            1 for d in docs if "PENDING" in str(d.to_dict().get("decision", ""))
-                        )
-                        approved = total - denied - pending
-                        st.caption(
-                            f"📈 Learning summary (last {total} decisions): "
-                            f"{approved} approved, {pending} pending review, {denied} denied."
-                        )
-            except Exception:
-                # silently ignore if Firestore is not configured or unavailable
-                pass
 
             # Architecture diagram (Data Flow)
             with st.expander("📦 End-to-End AccessOps Pipeline (Architecture Diagram)", expanded=False):
@@ -785,7 +713,10 @@ with output_col:
                 try:
                     st.image("5. Decision Logic Flow (Gatekeeper).png", use_column_width=True)
                 except Exception:
-                    st.info("Gatekeeper diagram PNG not found in repository (5. Decision Logic Flow (Gatekeeper).png).")
+                    st.info(
+                        "Gatekeeper diagram PNG not found in repository "
+                        "(5. Decision Logic Flow (Gatekeeper).png)."
+                    )
 
         # Agent Trace
         with trace_tab:
