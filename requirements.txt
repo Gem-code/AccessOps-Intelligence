@@ -5,4 +5,4 @@ nest_asyncio
 plotly
 reportlab
 matplotlib
-streamlit-monaco==0.0.6
+streamlit-monaco==0.1.3
