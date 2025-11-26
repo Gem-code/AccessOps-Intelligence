@@ -183,21 +183,52 @@ def format_badge(label: str, emoji: str) -> str:
     return f'<span class="pill-badge">{emoji} {label}</span>'
 
 
-def create_pdf_bytes(report_text: str, title: str) -> bytes:
-    """Simple PDF wrapper around the markdown board report."""
+def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) -> bytes:
+    """
+    Generate a color PDF for the Board Report, with a traffic-light risk banner.
+    """
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=LETTER)
     width, height = LETTER
     y = height - 72
 
+    # --- Title (black) ---
     c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(colors.black)
     c.drawString(72, y, title[:90])
+    y -= 26
+
+    # --- Traffic light banner (emoji + color based on score) ---
+    # Simple thresholds – adjust if you prefer different cutoffs
+    if score <= 30:
+        banner_text = "🟢 LOW RISK – Within policy guardrails"
+        banner_color = colors.green
+    elif score <= 60:
+        banner_text = "🟡 MODERATE RISK – Monitor and log"
+        banner_color = colors.orange
+    elif score <= 85:
+        banner_text = "🟠 HIGH RISK – Strong controls / approvals required"
+        banner_color = colors.red
+    else:
+        banner_text = "🔴 CRITICAL RISK – Block / escalate immediately"
+        banner_color = colors.red
+
+    # Optionally include decision in banner
+    banner_text = f"{banner_text}  |  Decision: {decision}"
+
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColor(banner_color)
+    c.drawString(72, y, banner_text[:100])
     y -= 24
 
+    # --- Body content in black (the markdown-style board_report text) ---
     c.setFont("Helvetica", 10)
+    c.setFillColor(colors.black)
+
     for raw_line in report_text.splitlines():
         line = raw_line.replace("\t", "    ")
         if not line.strip():
@@ -210,12 +241,15 @@ def create_pdf_bytes(report_text: str, title: str) -> bytes:
                 if y < 72:
                     c.showPage()
                     c.setFont("Helvetica", 10)
+                    c.setFillColor(colors.black)
                     y = height - 72
             c.drawString(72, y, line)
             y -= 12
+
         if y < 72:
             c.showPage()
             c.setFont("Helvetica", 10)
+            c.setFillColor(colors.black)
             y = height - 72
 
     c.showPage()
