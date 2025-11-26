@@ -17,14 +17,14 @@ from reportlab.pdfgen import canvas
 try:
     import accessops_engine  # must be in same directory
 except ImportError:
-    st.error("CRITICAL ERROR: `accessops_engine.py` not found. Please ensure it is in the same directory.")
+    st.error("CRITICAL ERROR: 'accessops_engine.py' not found. Please ensure it is in the same directory.")
     st.stop()
 
-# Allow asyncio.run inside Streamlit (important for ADK / Capstone notebooks)
+# Allow asyncio.run inside Streamlit
 nest_asyncio.apply()
 
 # ---------------------------------------------------------------------
-# 1. PAGE CONFIG & THEME
+# 1. PAGE CONFIG & LIGHT THEME
 # ---------------------------------------------------------------------
 st.set_page_config(
     page_title="AccessOps Intelligence – CISO Command Center",
@@ -33,115 +33,119 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS – dark, enterprise feel
+# Light, enterprise-style theme overrides
 st.markdown(
     """
 <style>
     .stApp {
-        background-color: #020617; /* slate-950 */
-        color: #e2e8f0;
+        background-color: #f3f4f6;  /* light gray */
+        color: #111827;             /* near-black text */
         font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
     }
 
     section[data-testid="stSidebar"] {
-        background-color: #020617;
-        border-right: 1px solid #1f2937;
+        background-color: #e5e7eb;  /* slightly darker sidebar */
+        border-right: 1px solid #d1d5db;
     }
 
     .step-header {
-        background: linear-gradient(90deg, #0f172a 0%, #020617 100%);
+        background-color: #e5e7eb;
         padding: 10px 16px;
         border-radius: 8px;
-        border-left: 4px solid #3b82f6;
+        border-left: 4px solid #2563eb;
         margin-bottom: 10px;
         font-weight: 600;
         font-size: 0.95rem;
         letter-spacing: 0.02em;
-        color: #e5e7eb;
+        color: #111827;
     }
 
     .pill-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.15rem 0.6rem;
+        padding: 0.1rem 0.6rem;
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 500;
-        border: 1px solid rgba(148,163,184,0.75);
-        background-color: rgba(15,23,42,0.85);
-        color: #e5e7eb;
+        border: 1px solid rgba(148,163,184,0.9);
+        background-color: #e5e7eb;
+        color: #111827;
     }
 
     .stTextArea textarea {
-        background-color: #020617;
-        color: #e5e7eb;
-        border: 1px solid #1f2937;
+        background-color: #ffffff;
+        color: #111827;
+        border: 1px solid #d1d5db;
         font-family: "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
         font-size: 0.8rem;
     }
 
     .stRadio label {
-        color: #e2e8f0 !important;
+        color: #111827 !important;
         font-weight: 500;
         font-size: 0.9rem;
     }
 
     div.stButton > button {
-        background: radial-gradient(circle at 10% 20%, #1d4ed8 0%, #1e293b 40%, #020617 100%);
+        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
         color: #f9fafb;
-        border: 1px solid #1d4ed8;
         border-radius: 999px;
+        border: none;
         font-weight: 600;
         height: 3rem;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
         font-size: 0.8rem;
-        transition: all 0.2s ease-out;
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+        transition: transform 0.12s ease-out, box-shadow 0.12s ease-out;
     }
+
     div.stButton > button:hover {
-        box-shadow: 0 20px 35px rgba(37, 99, 235, 0.35);
         transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
     }
 
     div[data-testid="metric-container"] {
-        background-color: #020617;
+        background-color: #ffffff;
         border-radius: 10px;
-        border: 1px solid #1f2937;
+        border: 1px solid #e5e7eb;
         padding: 10px 12px;
     }
 
     button[data-baseweb="tab"] {
-        background-color: #020617 !important;
+        background-color: #e5e7eb !important;
         border-radius: 999px !important;
         border: 1px solid transparent !important;
-        padding: 0.4rem 1rem !important;
+        padding: 0.3rem 0.9rem !important;
         margin-right: 0.3rem !important;
         font-size: 0.8rem !important;
+        color: #374151 !important;
     }
     button[data-baseweb="tab"][aria-selected="true"] {
-        border-color: #3b82f6 !important;
-        background-color: rgba(37, 99, 235, 0.12) !important;
+        border-color: #2563eb !important;
+        background-color: #dbeafe !important;
+        color: #1e3a8a !important;
     }
 
     .trace-card {
         border-radius: 10px;
-        border: 1px solid #1f2937;
+        border: 1px solid #e5e7eb;
         padding: 0.75rem 1rem;
-        background-color: #020617;
+        background-color: #ffffff;
         font-size: 0.8rem;
     }
 
     .caption-sm {
         font-size: 0.7rem;
-        color: #9ca3af;
+        color: #6b7280;
     }
 
     .section-label {
         font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        color: #9ca3af;
+        color: #6b7280;
         margin-bottom: 0.25rem;
     }
 </style>
@@ -160,22 +164,22 @@ def create_risk_gauge(score: float) -> go.Figure:
             mode="gauge+number",
             value=score,
             domain={"x": [0, 1], "y": [0, 1]},
-            title={"text": "Net Risk Score", "font": {"size": 18, "color": "#e5e7eb"}},
-            number={"font": {"size": 32, "color": "#f9fafb"}},
+            title={"text": "Net Risk Score", "font": {"size": 18, "color": "#111827"}},
+            number={"font": {"size": 32, "color": "#111827"}},
             gauge={
-                "axis": {"range": [0, 100], "tickcolor": "#e5e7eb"},
+                "axis": {"range": [0, 100], "tickcolor": "#4b5563"},
                 "bar": {"color": "rgba(0,0,0,0)"},
-                "bgcolor": "#020617",
+                "bgcolor": "#ffffff",
                 "borderwidth": 1,
-                "bordercolor": "#1f2937",
+                "bordercolor": "#e5e7eb",
                 "steps": [
-                    {"range": [0, 30], "color": "#16a34a"},
-                    {"range": [30, 60], "color": "#f59e0b"},
-                    {"range": [60, 85], "color": "#ef4444"},
-                    {"range": [85, 100], "color": "#7f1d1d"},
+                    {"range": [0, 30], "color": "#bbf7d0"},
+                    {"range": [30, 60], "color": "#fef3c7"},
+                    {"range": [60, 85], "color": "#fed7aa"},
+                    {"range": [85, 100], "color": "#fecaca"},
                 ],
                 "threshold": {
-                    "line": {"color": "#f9fafb", "width": 4},
+                    "line": {"color": "#111827", "width": 4},
                     "thickness": 0.8,
                     "value": score,
                 },
@@ -217,7 +221,6 @@ def create_pdf_bytes(report_text: str, title: str) -> bytes:
         if not line.strip():
             y -= 10
         else:
-            # naive wrapping
             while len(line) > 110:
                 c.drawString(72, y, line[:110])
                 line = line[110:]
@@ -242,47 +245,47 @@ def create_pdf_bytes(report_text: str, title: str) -> bytes:
 
 
 # ---------------------------------------------------------------------
-# 3. SIDEBAR – CONFIG + JUDGE ORIENTATION
+# 3. SIDEBAR – STEP 1: AUTH / CONFIG
 # ---------------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🛡️ AccessOps Intelligence")
     st.caption(
         "Agentic risk engine for **Non-Human Identities**.\n"
-        "This UI showcases the full pipeline judges care about: investigation, scoring, critique, gatekeeper, and board report."
+        "This UI exposes the full pipeline: investigation, scoring, critique, gatekeeper, and board report."
     )
 
     st.markdown("---")
-    st.markdown("#### ⚙️ Runtime Configuration")
+    st.markdown("#### ⚙️ Step 1: Runtime Configuration")
 
     api_key = st.text_input(
-        "Optional: Google API key",
+        "Google API Key (for local / MakerSuite):",
         type="password",
-        help="Only needed for local API-key runs. In Cloud Run, use Vertex/GCP service identity.",
+        help="For local API-key runs. In Cloud Run, Vertex AI uses the service account.",
     )
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
-        st.success("API key exported to environment for this session.")
+        st.success("✅ API key set for this session.")
     else:
-        st.info("Using default Vertex / ADK config from `accessops_engine.py`.")
+        st.info("Using default Vertex / GCP identity from `accessops_engine.py`.")
 
     st.markdown("---")
     st.markdown("#### 🧪 Demo Scenarios")
     st.markdown(
         """
-- **Toxic Finance Bot** – AI service account requesting **write** access to Production General Ledger.
-- **DevOps Engineer** – Human engineer requesting **read** access to Dev logs.
-- **Custom Payload** – Paste any JSON request body you want to test.
+- **DevOps Engineer (LOW RISK)** – Human requesting read-only access to Dev logs.
+- **Toxic Finance Bot (CRITICAL)** – AI bot trying to write to Production General Ledger.
+- **Custom Payload** – Paste any request JSON you want to test.
 """
     )
 
     st.markdown("---")
     st.markdown("#### 📓 Judge Runbook")
     st.caption(
-        "1. Pick a scenario.\n"
-        "2. Inspect / tweak JSON.\n"
+        "1. Ensure Step 1 API Key is set (or Vertex identity is configured).\n"
+        "2. Choose a scenario and inspect the JSON.\n"
         "3. Run the audit.\n"
         "4. Use tabs: **Executive**, **Signals**, **Context**, **Agent Trace**, **Raw JSON**.\n"
-        "5. Export the Board packet as Markdown or PDF."
+        "5. Export the board packet as Markdown or PDF."
     )
 
 # ---------------------------------------------------------------------
@@ -311,38 +314,27 @@ with header_right:
 st.markdown("")
 
 # ---------------------------------------------------------------------
-# 5. INPUT PANEL – SCENARIO & JSON
+# 5. INPUT PANEL – STEP 2 / STEP 3
 # ---------------------------------------------------------------------
 input_col, output_col = st.columns([1.05, 1.45])
 
 with input_col:
-    st.markdown("<div class='step-header'>📝 Step 1 – Select Scenario</div>", unsafe_allow_html=True)
+    # Step 2 – Scenario
+    st.markdown('<div class="step-header">📝 Step 2 – Select Scenario</div>', unsafe_allow_html=True)
 
     scenario = st.radio(
-        "Choose a test case:",
-        ["Toxic Finance Bot (CRITICAL)", "DevOps Engineer (LOW RISK)", "Custom Payload"],
+        "Select a pre-defined test case:",
+        # DevOps LOW first, Critical second (as requested)
+        ["DevOps Engineer (LOW RISK)", "Toxic Finance Bot (CRITICAL RISK)", "Custom Payload"],
         captions=[
-            "AI Agent attempting unauthorized write on Tier-1 ledger.",
-            "Human requesting low-risk read on non-production logs.",
+            "Human engineer requesting read-only access to non-production logs.",
+            "AI service account attempting unauthorized write access to General Ledger.",
             "Bring your own JSON body.",
         ],
     )
 
-    if "Toxic" in scenario:
-        default_json = {
-            "request_id": "REQ-TOXIC-001",
-            "user_id": "svc_finops_auto_bot",
-            "identity_type": "ai_agent",
-            "job_title": "Automated Financial Ops",
-            "department": "Finance Automation",
-            "requested_resource_id": "prod_general_ledger_rw",
-            "requested_resource_name": "Production General Ledger",
-            "access_type": "write",
-            "system_criticality": "tier_1",
-            "data_sensitivity": "restricted",
-            "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix.",
-        }
-    elif "DevOps" in scenario:
+    # Step 3 – JSON payload
+    if "DevOps" in scenario:
         default_json = {
             "request_id": "REQ-DEVOPS-005",
             "user_id": "eng_human_user",
@@ -355,6 +347,20 @@ with input_col:
             "system_criticality": "non_prod",
             "data_sensitivity": "internal",
             "justification": "Debugging build failure.",
+        }
+    elif "Toxic" in scenario:
+        default_json = {
+            "request_id": "REQ-TOXIC-001",
+            "user_id": "svc_finops_auto_bot",
+            "identity_type": "ai_agent",
+            "job_title": "Automated Financial Ops",
+            "department": "Finance Automation",
+            "requested_resource_id": "prod_general_ledger_rw",
+            "requested_resource_name": "Production General Ledger",
+            "access_type": "write",
+            "system_criticality": "tier_1",
+            "data_sensitivity": "restricted",
+            "justification": "AI Agent detected anomaly. Requesting autonomous write access to fix.",
         }
     else:
         default_json = {
@@ -371,8 +377,8 @@ with input_col:
             "justification": "Business justification goes here.",
         }
 
-    st.markdown("<div class='step-header'>📨 Step 2 – Review / Edit JSON Payload</div>", unsafe_allow_html=True)
-    st.caption("This is the exact request body passed into the ADK/Vortex pipeline.")
+    st.markdown('<div class="step-header">📨 Step 3 – Review / Edit JSON Payload</div>', unsafe_allow_html=True)
+    st.caption("This JSON is passed into the ADK / Vortex agentic pipeline.")
     request_text = st.text_area(
         "Access request JSON",
         value=json.dumps(default_json, indent=2),
@@ -384,7 +390,7 @@ with input_col:
         run_btn = st.button("🚨 Run Security Audit", use_container_width=True)
     with hint_col:
         st.caption(
-            "Must include:\n"
+            "Required keys:\n"
             "- `request_id`\n"
             "- `user_id`\n"
             "- `requested_resource_id`\n"
@@ -392,262 +398,24 @@ with input_col:
         )
 
 # ---------------------------------------------------------------------
-# 6. EXECUTION LOGIC
+# 6. EXECUTION & OUTPUT
 # ---------------------------------------------------------------------
 pipeline_result: Optional["accessops_engine.PipelineResult"] = None
 
 if run_btn:
     with output_col:
-        st.markdown("<div class='step-header'>🧠 Step 3 – Agentic Reasoning Trace</div>", unsafe_allow_html=True)
+        st.markdown('<div class="step-header">🧠 Step 4 – Agentic Reasoning Trace</div>', unsafe_allow_html=True)
+
+        if not api_key:
+            st.warning(
+                "You can run with Vertex / service account only, but if you intended to use an API key, "
+                "please complete **Step 1 – Runtime Configuration** in the sidebar."
+            )
 
         # Parse JSON
         try:
             req_data = json.loads(request_text)
         except json.JSONDecodeError:
-            st.error("❌ Invalid JSON – please correct syntax (use double quotes, commas, etc.).")
+            st.error("❌ Invalid JSON – please correct syntax (double quotes, commas, etc.).")
         else:
-            missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
-            if missing:
-                st.error(f"❌ Missing required key(s): {', '.join(missing)}.")
-            else:
-                status_box = st.status("🕵️ Investigator Agent: Gathering IAM / SIEM context…", expanded=True)
-                status_box.write("Connecting to AccessOps engine in Google Cloud Run / Vertex…")
-
-                async def run_pipeline_async() -> "accessops_engine.PipelineResult":
-                    return await accessops_engine.run_pipeline(req_data)
-
-                try:
-                    pipeline_result = asyncio.run(run_pipeline_async())
-                except Exception as e:
-                    status_box.update(
-                        label="❌ Pipeline execution failed",
-                        state="error",
-                        expanded=True,
-                    )
-                    st.error(f"Execution Error: {e}")
-                    pipeline_result = None
-                else:
-                    # Status trail for rubric
-                    status_box.write("✅ Investigator – context & peer baselines collected.")
-                    status_box.write("✅ Severity Analyst – NIST 800-53 score computed.")
-                    status_box.write("✅ Risk Critic – second-opinion challenge completed.")
-                    status_box.write("✅ Gatekeeper – authorization verdict generated.")
-                    status_box.write("✅ Board Reporter – regulator-ready summary assembled.")
-
-                    decision = pipeline_result.decision
-                    risk_score_obj = pipeline_result.risk_score or {}
-                    score = safe_get(risk_score_obj, "net_risk_score", 0) or 0
-                    severity = safe_get(risk_score_obj, "severity_level", "UNKNOWN")
-                    investigation = pipeline_result.investigation or {}
-                    policy_violations = safe_get(investigation, "policy_violations", []) or []
-
-                    if "DENY" in (decision or "") or "REVIEW" in (decision or ""):
-                        status_box.update(
-                            label="🛑 GATEKEEPER: Blocked / Requires Human",
-                            state="error",
-                            expanded=False,
-                        )
-                        decision_state = "error"
-                    else:
-                        status_box.update(
-                            label="✅ GATEKEEPER: Auto-approved",
-                            state="complete",
-                            expanded=False,
-                        )
-                        decision_state = "success"
-
-                    # -----------------------------------------------------------------
-                    # 7. OUTPUT TABS
-                    # -----------------------------------------------------------------
-                    st.markdown("")
-                    st.markdown("<div class='step-header'>📊 Step 4 – Risk Dashboard</div>", unsafe_allow_html=True)
-
-                    overview_tab, signals_tab, context_tab, trace_tab, raw_tab = st.tabs(
-                        [
-                            "Executive Overview",
-                            "Risk Signals",
-                            "Context & Policies",
-                            "Agent Trace (ADK)",
-                            "Raw JSON",
-                        ]
-                    )
-
-                    # --- Overview Tab ------------------------------------------------
-                    with overview_tab:
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric(
-                            "Decision",
-                            decision,
-                            delta="STOP" if score > 50 else "GO",
-                            delta_color="inverse",
-                        )
-                        m2.metric(
-                            "Net Risk Score",
-                            f"{score:.0f}/100",
-                            delta=severity,
-                            delta_color="inverse",
-                        )
-                        m3.metric(
-                            "Policy Violations",
-                            len(policy_violations),
-                            delta="Detected" if policy_violations else "None",
-                            delta_color="inverse",
-                        )
-
-                        st.plotly_chart(create_risk_gauge(float(score)), use_container_width=True)
-
-                        if decision_state == "error":
-                            st.error(
-                                "🛑 **BLOCKED / ESCALATE** – This access request breaches SoD / NIST guardrails. "
-                                "See Risk Signals & Board Report for rationale."
-                            )
-                        else:
-                            st.success(
-                                "✅ **APPROVED / WITHIN GUARDRAILS** – Risk is within policy envelope."
-                            )
-
-                        st.markdown("#### 📄 Executive / Board Report")
-                        st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
-                        st.markdown(pipeline_result.board_report, unsafe_allow_html=True)
-
-                        report_id = req_data.get("request_id", "UNKNOWN")
-                        md_bytes = pipeline_result.board_report.encode("utf-8")
-                        pdf_bytes = create_pdf_bytes(
-                            pipeline_result.board_report,
-                            f"Access Risk Audit – {report_id}",
-                        )
-
-                        dl_col1, dl_col2 = st.columns(2)
-                        with dl_col1:
-                            st.download_button(
-                                label="📥 Download Board Report (Markdown)",
-                                data=md_bytes,
-                                file_name=f"Audit_Report_{report_id}.md",
-                                mime="text/markdown",
-                                use_container_width=True,
-                            )
-                        with dl_col2:
-                            st.download_button(
-                                label="📄 Download Board Packet (PDF)",
-                                data=pdf_bytes,
-                                file_name=f"Audit_Report_{report_id}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True,
-                            )
-
-                    # --- Risk Signals Tab -------------------------------------------
-                    with signals_tab:
-                        st.markdown("#### 🚦 Risk Factor Analysis")
-
-                        risk_signals = safe_get(investigation, "risk_signals", {}) or {}
-                        if not risk_signals:
-                            st.info("No structured `risk_signals` field returned. Showing raw investigation instead.")
-                            st.json(investigation)
-                        else:
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                st.markdown("**Binary / Categorical Signals**")
-                                for key, val in risk_signals.items():
-                                    emoji = "🔴" if bool(val) else "🟢"
-                                    label = key.replace("_", " ").title()
-                                    st.markdown(format_badge(label, emoji), unsafe_allow_html=True)
-
-                            with col_b:
-                                st.markdown("**High-Level Interpretation**")
-                                high_flags = [k for k, v in risk_signals.items() if v]
-                                if not high_flags:
-                                    st.success("No critical flags raised by the investigator.")
-                                else:
-                                    st.error(
-                                        "Raised signals: "
-                                        + ", ".join(k.replace("_", " ") for k in high_flags)
-                                    )
-
-                            st.markdown("---")
-                            st.markdown("**Risk Scoring JSON**")
-                            st.json(risk_score_obj)
-
-                    # --- Context & Policies Tab -------------------------------------
-                    with context_tab:
-                        st.markdown("#### 🧩 Context Signals")
-
-                        up = safe_get(investigation, "user_profile", {})
-                        ent = safe_get(investigation, "current_access", {})
-                        peer = safe_get(investigation, "peer_baseline", {})
-                        act = safe_get(investigation, "activity_summary", {})
-
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            st.markdown("**Identity Profile (WHO)**")
-                            st.json(up or {"note": "No user profile returned."})
-
-                            st.markdown("**Current Entitlements (WHAT THEY ALREADY HAVE)**")
-                            st.json(ent or {"note": "No entitlement data returned."})
-
-                        with c2:
-                            st.markdown("**Peer Baseline (NORM)**")
-                            st.json(peer or {"note": "No peer baseline returned."})
-
-                            st.markdown("**Recent Activity (BEHAVIOR)**")
-                            st.json(act or {"note": "No SIEM / activity summary returned."})
-
-                        st.markdown("---")
-                        st.markdown("#### 📜 Policy Violations")
-                        if not policy_violations:
-                            st.success("No explicit policy violations detected.")
-                        else:
-                            for v in policy_violations:
-                                with st.expander(
-                                    f"🛑 {v.get('policy_id', 'POLICY')} – {v.get('severity', 'SEVERITY')}",
-                                    expanded=True,
-                                ):
-                                    st.write(v.get("description", ""))
-                                    st.markdown(
-                                        f"**NIST Control:** `{v.get('nist_control', 'N/A')}`  \n"
-                                        f"**Finding:** {v.get('finding', 'N/A')}"
-                                    )
-
-                    # --- Agent Trace Tab --------------------------------------------
-                    with trace_tab:
-                        st.markdown("#### 🧬 ADK Agent Trace")
-
-                        exec_trace: List[Dict[str, Any]] = pipeline_result.execution_trace or []
-                        if not exec_trace:
-                            st.info("No `execution_trace` list returned from engine.")
-                        else:
-                            for i, phase in enumerate(exec_trace, start=1):
-                                with st.expander(f"{i}. Phase: {phase.get('phase', 'unknown')}", expanded=True):
-                                    st.markdown(
-                                        f"<div class='caption-sm'>Agent: "
-                                        f"`{phase.get('agent', 'unknown')}`</div>",
-                                        unsafe_allow_html=True,
-                                    )
-                                    st.markdown("<div class='trace-card'>", unsafe_allow_html=True)
-                                    st.json(phase)
-                                    st.markdown("</div>", unsafe_allow_html=True)
-
-                    # --- Raw JSON Tab ------------------------------------------------
-                    with raw_tab:
-                        st.markdown("#### 🧾 Raw Engine Payloads")
-                        st.markdown("**Request Context**")
-                        st.json(req_data)
-                        st.markdown("---")
-                        st.markdown("**Investigation Output**")
-                        st.json(investigation)
-                        st.markdown("---")
-                        st.markdown("**Risk Scoring Output**")
-                        st.json(risk_score_obj)
-                        st.markdown("---")
-                        st.markdown("**Gatekeeper Decision JSON**")
-                        st.json({"decision": pipeline_result.decision})
-                        st.markdown("---")
-                        st.markdown("**Execution Trace**")
-                        st.json(pipeline_result.execution_trace)
-
-else:
-    # No run yet: nudge to start
-    with output_col:
-        st.info(
-            "👈 Select a scenario, adjust the JSON if needed, and hit **“Run Security Audit”** "
-            "to see the full AccessOps agent pipeline and board-ready report."
-        )
+            missing = [k for k in ["request_id", "user_id", "requested_resource_]()]()
