@@ -413,14 +413,36 @@ if run_btn:
             )
 
         # Parse JSON
-        try:
+        # Parse JSON
+try:
     req_data = json.loads(request_text)
 except json.JSONDecodeError:
     st.error("❌ Invalid JSON – please correct syntax (double quotes, commas, etc.).")
 else:
-    missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
+    missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] 
+               if k not in req_data]
+
     if missing:
         st.error(f"❌ Missing required key(s): {', '.join(missing)}.")
     else:
-        missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
+        status_box = st.status("Running AccessOps agent pipeline…", expanded=True)
+        status_box.write("🕵️ Investigator – collecting IAM / entitlements / peer baseline…")
 
+        async def run_pipeline_async() -> "accessops_engine.PipelineResult":
+            return await accessops_engine.run_pipeline(req_data)
+
+        try:
+            pipeline_result = asyncio.run(run_pipeline_async())
+        except Exception as e:
+            status_box.update(
+                label="❌ Pipeline execution failed",
+                state="error",
+                expanded=True,
+            )
+            st.error(f"Execution Error: {e}")
+            pipeline_result = None
+        else:
+            status_box.write("✅ Severity Analyst – NIST 800-53 net risk computed.")
+            status_box.write("✅ Risk Critic – challenge / second opinion completed.")
+            status_box.write("✅ Gatekeeper – authorization decision generated.")
+            status_box.write("✅ Board Reporter – executive narrative drafted.")
