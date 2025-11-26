@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 import nest_asyncio
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_monaco import st_monaco
 
 # ---------------------------------------------------------------------
 # 0. ENGINE WIRING
@@ -406,9 +407,8 @@ with input_col:
     # Step 3 – JSON payload
     st.markdown('<div class="step-header">📨 Step 3 – Review / Edit JSON Payload</div>', unsafe_allow_html=True)
     st.caption("This JSON is passed into the ADK / Vortex agentic pipeline.")
-    from streamlit_monaco import st_monaco
     
-    # Syntax-highlighted editor (VS Code style)
+    # Monaco editor with JSON syntax highlighting
     request_text = st_monaco(
         value=json.dumps(default_json, indent=2),
         language="json",
@@ -417,14 +417,6 @@ with input_col:
         key="json_editor",
     )
     
-    # Validate JSON
-    try:
-        req_data = json.loads(request_text)
-        st.success("✓ JSON is valid")
-    except Exception as e:
-        st.error(f"Invalid JSON: {e}")
-
-
     run_col, hint_col = st.columns([2, 1])
     with run_col:
         run_btn = st.button("🚨 Run Security Audit", use_container_width=True)
@@ -437,6 +429,7 @@ with input_col:
             f"{format_badge('access_type','🔐')}",
             unsafe_allow_html=True,
         )
+
 
 # ---------------------------------------------------------------------
 # 7. RUN PIPELINE (STORE IN SESSION STATE)
