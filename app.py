@@ -632,8 +632,8 @@ with output_col:
 
             # Architecture diagram (Data Flow)
             with st.expander("📦 End-to-End AccessOps Pipeline (Architecture Diagram)", expanded=False):
-                try:
-                    st.image("3. Data Flow Architecture.png", use_column_width=True)
+                    try:
+                    st.image("data_flow.png", use_column_width=True)
                 except Exception:
                     st.info("Architecture diagram PNG not found in repository (3. Data Flow Architecture.png).")
 
@@ -711,7 +711,7 @@ with output_col:
             # Gatekeeper deterministic logic diagram
             with st.expander("🚦 Gatekeeper Safety Logic (Deterministic Controls)", expanded=False):
                 try:
-                    st.image("5. Decision Logic Flow (Gatekeeper).png", use_column_width=True)
+                    st.image("gatekeeper_logic.png", use_column_width=True)
                 except Exception:
                     st.info(
                         "Gatekeeper diagram PNG not found in repository "
@@ -742,7 +742,7 @@ with output_col:
             # Toxic scenario interaction diagram
             with st.expander("🧪 Multi-Agent Sequence Diagram (Toxic Scenario)", expanded=False):
                 try:
-                    st.image('2. Agent Interaction Sequence (The "Toxic" Scenario).png', use_column_width=True)
+                    st.image("agent_sequence_toxic.png", use_column_width=True)
                 except Exception:
                     st.info(
                         "Sequence diagram PNG not found in repository "
