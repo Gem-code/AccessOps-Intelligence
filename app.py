@@ -633,9 +633,9 @@ with output_col:
             # Architecture diagram (Data Flow)
             with st.expander("📦 End-to-End AccessOps Pipeline (Architecture Diagram)", expanded=False):
                     try:
-                    st.image("data_flow.png", use_column_width=True)
-                except Exception:
-                    st.info("Architecture diagram PNG not found in repository (3. Data Flow Architecture.png).")
+                        st.image("data_flow.png", use_column_width=True)
+                    except Exception:
+                        st.info("Architecture diagram PNG not found in repository (3. Data Flow Architecture.png).")
 
         # Risk Signals
         with signals_tab:
