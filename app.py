@@ -145,6 +145,7 @@ if "result" not in st.session_state:
     st.session_state["result"] = None
     st.session_state["req_data"] = None
     st.session_state["error_msg"] = None
+    st.session_state["last_logged_request_id"] = None
 
 # ---------------------------------------------------------------------
 # 3. HELPERS
@@ -257,6 +258,7 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     buffer.close()
     return pdf_bytes
 
+
 def run_pipeline_sync(request_context: Dict[str, Any]):
     """
     Helper to run the async pipeline from Streamlit safely.
@@ -268,6 +270,41 @@ def run_pipeline_sync(request_context: Dict[str, Any]):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(accessops_engine.run_pipeline(request_context))
+
+
+def log_decision_to_firestore(req_data, risk_score_obj, decision):
+    """
+    Optional feedback loop: log each decision into Firestore.
+    This only runs if FIRESTORE_PROJECT_ID is set and the library is installed.
+    If anything fails, we fail silently (no impact on UI).
+    """
+    project_id = os.getenv("FIRESTORE_PROJECT_ID")
+    if not project_id:
+        return
+
+    try:
+        from google.cloud import firestore  # type: ignore
+    except ImportError:
+        return
+
+    try:
+        db = firestore.Client(project=project_id)
+        doc = {
+            "request_id": req_data.get("request_id"),
+            "user_id": req_data.get("user_id"),
+            "resource_id": req_data.get("requested_resource_id"),
+            "decision": decision,
+            "severity": risk_score_obj.get("severity_level"),
+            "net_risk_score": risk_score_obj.get("net_risk_score"),
+            "identity_type": req_data.get("identity_type"),
+            "timestamp": datetime.now(timezone.utc),
+        }
+        if not doc["request_id"]:
+            return
+        db.collection("accessops_decisions").document(doc["request_id"]).set(doc, merge=True)
+    except Exception:
+        # We don't surface Firestore issues to non-technical users
+        return
 
 
 # ---------------------------------------------------------------------
@@ -331,6 +368,14 @@ with header_right:
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     st.markdown(format_badge(now_str, "⏱️"), unsafe_allow_html=True)
     st.markdown(format_badge("NIST 800-53 • AC-6 • SoD", "📚"), unsafe_allow_html=True)
+
+# Why this matters (aligned with writeup)
+with st.expander("🧩 Why this matters"):
+    st.markdown(
+        "- Most modern breaches involve some form of identity or access failure.\n"
+        "- AI agents can request powerful access at machine speed, often outside traditional IAM workflows.\n"
+        "- AccessOps Intelligence makes those AI and human access decisions **explainable, auditable and policy-aligned**."
+    )
 
 st.markdown("")
 
@@ -427,26 +472,32 @@ if run_btn:
     except json.JSONDecodeError:
         st.session_state["result"] = None
         st.session_state["req_data"] = None
-        st.session_state["error_msg"] = "❌ Invalid JSON – please correct syntax (double quotes, commas, etc.)."
+        st.session_state["error_msg"] = (
+            "❌ The access request is not valid JSON. "
+            "Please check commas, quotes and brackets and try again."
+        )
     else:
         missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
         if missing:
             st.session_state["result"] = None
             st.session_state["req_data"] = None
-            st.session_state["error_msg"] = f"❌ Missing required key(s): {', '.join(missing)}."
+            st.session_state["error_msg"] = (
+                "❌ The following required fields are missing in the JSON: "
+                + ", ".join(missing)
+                + ". Please add them and re-run."
+            )
         else:
             try:
                 result = run_pipeline_sync(req_data)
             except Exception as e:
-            st.session_state["result"] = None
-            st.session_state["req_data"] = None
-            st.session_state["error_msg"] = (
-                "⚠️ Something went wrong while running the risk engine. "
-                "This is a system issue, not your request. "
-                "If it keeps happening, please share this code with the engineering team:\n\n"
-                f"`{type(e).__name__}: {e}`"
-            )
-
+                st.session_state["result"] = None
+                st.session_state["req_data"] = None
+                st.session_state["error_msg"] = (
+                    "⚠️ Something went wrong while running the risk engine. "
+                    "This is a system issue, not your request. "
+                    "If it keeps happening, please share this code with the engineering team:\n\n"
+                    f"`{type(e).__name__}: {e}`"
+                )
             else:
                 st.session_state["result"] = result
                 st.session_state["req_data"] = req_data
@@ -511,6 +562,11 @@ with output_col:
             agent_name = phase.get("agent") or phase.get("phase") or "unknown_agent"
             agent_counts[agent_name] = agent_counts.get(agent_name, 0) + 1
 
+        st.markdown(
+            "**Multi-Agent Security Council:** "
+            "1️⃣ Investigator → 2️⃣ Severity Analyst → 3️⃣ Critic → 4️⃣ Gatekeeper → 5️⃣ Narrator"
+        )
+
         if agent_counts:
             st.markdown("#### 🤖 Multi-Agent Status")
             cols = st.columns(min(len(agent_counts), 4))
@@ -524,6 +580,13 @@ with output_col:
                         f"<span class='caption-sm'>{count} events</span>",
                         unsafe_allow_html=True,
                     )
+
+        # Log this decision once per request_id (optional Firestore)
+        last_logged = st.session_state.get("last_logged_request_id")
+        current_id = req_data.get("request_id")
+        if current_id and current_id != last_logged:
+            log_decision_to_firestore(req_data, risk_score_obj, decision)
+            st.session_state["last_logged_request_id"] = current_id
 
         # ---------------------- TABS (Step 5) ---------------------------
         st.markdown("")
@@ -568,6 +631,10 @@ with output_col:
                     "✅ **APPROVED / WITHIN GUARDRAILS** – Risk is within the defined policy envelope."
                 )
 
+            st.caption(
+                "Mapped to **NIST 800-53** controls (AC-6, IA-5, AU-6) and Segregation-of-Duties policies."
+            )
+
             st.markdown("#### 📄 Executive / Board Report")
             st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
             st.markdown(board_report, unsafe_allow_html=True)
@@ -575,12 +642,11 @@ with output_col:
             # --- Download buttons: Board Report first, then Audit Log ---
             report_id = req_data.get("request_id", "UNKNOWN")
 
-            # Board Report PDF (with color + traffic lights)
+            # Board Report PDF (matches dashboard text)
             pdf_bytes = create_pdf_bytes(
-            board_report,
-            f"AccessOps Board Report – {report_id}",
+                board_report,
+                f"AccessOps Board Report – {report_id}",
             )
-
 
             # Audit Log JSON wrapped in Markdown
             audit_log = {
@@ -611,6 +677,38 @@ with output_col:
                     use_container_width=True,
                 )
 
+            # Optional: simple learning summary if Firestore is configured
+            try:
+                from google.cloud import firestore  # type: ignore
+
+                project_id = os.getenv("FIRESTORE_PROJECT_ID")
+                if project_id:
+                    db = firestore.Client(project=project_id)
+                    docs = list(db.collection("accessops_decisions").limit(200).stream())
+                    total = len(docs)
+                    if total > 0:
+                        denied = sum(
+                            1 for d in docs if str(d.to_dict().get("decision", "")).startswith("DENY")
+                        )
+                        pending = sum(
+                            1 for d in docs if "PENDING" in str(d.to_dict().get("decision", ""))
+                        )
+                        approved = total - denied - pending
+                        st.caption(
+                            f"📈 Learning summary (last {total} decisions): "
+                            f"{approved} approved, {pending} pending review, {denied} denied."
+                        )
+            except Exception:
+                # silently ignore if Firestore is not configured or unavailable
+                pass
+
+            # Architecture diagram (Data Flow)
+            with st.expander("📦 End-to-End AccessOps Pipeline (Architecture Diagram)", expanded=False):
+                try:
+                    st.image("3. Data Flow Architecture.png", use_column_width=True)
+                except Exception:
+                    st.info("Architecture diagram PNG not found in repository (3. Data Flow Architecture.png).")
+
         # Risk Signals
         with signals_tab:
             st.markdown("#### 🚦 Risk Factor Analysis")
@@ -620,7 +718,6 @@ with output_col:
                     "The engine did not return structured risk signals for this run. "
                     "Showing the full investigation details instead."
                 )
-
                 st.json(investigation)
             else:
                 col_a, col_b = st.columns(2)
@@ -683,6 +780,13 @@ with output_col:
                             f"**Finding:** {v.get('finding', 'N/A')}"
                         )
 
+            # Gatekeeper deterministic logic diagram
+            with st.expander("🚦 Gatekeeper Safety Logic (Deterministic Controls)", expanded=False):
+                try:
+                    st.image("5. Decision Logic Flow (Gatekeeper).png", use_column_width=True)
+                except Exception:
+                    st.info("Gatekeeper diagram PNG not found in repository (5. Decision Logic Flow (Gatekeeper).png).")
+
         # Agent Trace
         with trace_tab:
             st.markdown("#### 🧬 ADK Agent Trace")
@@ -691,7 +795,6 @@ with output_col:
                     "No detailed agent trace was returned for this request. "
                     "You can still review the decision, risk score and board report."
                 )
-
             else:
                 for i, phase in enumerate(execution_trace, start=1):
                     phase_name = phase.get("phase", "unknown")
@@ -704,6 +807,16 @@ with output_col:
                         st.markdown("<div class='trace-card'>", unsafe_allow_html=True)
                         st.json(phase)
                         st.markdown("</div>", unsafe_allow_html=True)
+
+            # Toxic scenario interaction diagram
+            with st.expander("🧪 Multi-Agent Sequence Diagram (Toxic Scenario)", expanded=False):
+                try:
+                    st.image('2. Agent Interaction Sequence (The "Toxic" Scenario).png', use_column_width=True)
+                except Exception:
+                    st.info(
+                        "Sequence diagram PNG not found in repository "
+                        '(2. Agent Interaction Sequence (The "Toxic" Scenario).png).'
+                    )
 
         # Raw JSON
         with raw_tab:
