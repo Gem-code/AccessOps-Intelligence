@@ -414,8 +414,13 @@ if run_btn:
 
         # Parse JSON
         try:
-            req_data = json.loads(request_text)
-        except json.JSONDecodeError:
-            st.error("❌ Invalid JSON – please correct syntax (double quotes, commas, etc.).")
-        else:
-            missing = [k for k in ["request_id", "user_id", "requested_resource_]()]()
+    req_data = json.loads(request_text)
+except json.JSONDecodeError:
+    st.error("❌ Invalid JSON – please correct syntax (double quotes, commas, etc.).")
+else:
+    missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
+    if missing:
+        st.error(f"❌ Missing required key(s): {', '.join(missing)}.")
+    else:
+        missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
+
