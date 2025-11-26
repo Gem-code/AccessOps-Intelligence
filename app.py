@@ -139,7 +139,15 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------
-# 2. HELPERS
+# 2. SESSION STATE (PERSIST LATEST RESULT)
+# ---------------------------------------------------------------------
+if "result" not in st.session_state:
+    st.session_state["result"] = None
+    st.session_state["req_data"] = None
+    st.session_state["error_msg"] = None
+
+# ---------------------------------------------------------------------
+# 3. HELPERS
 # ---------------------------------------------------------------------
 def create_risk_gauge(score: float) -> go.Figure:
     score = score or 0
@@ -186,6 +194,7 @@ def format_badge(label: str, emoji: str) -> str:
 def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) -> bytes:
     """
     Generate a color PDF for the Board Report, with a traffic-light style risk banner.
+    Uses shapes (not emojis) so colors always render.
     """
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
@@ -197,31 +206,43 @@ def create_pdf_bytes(report_text: str, title: str, score: float, decision: str) 
     y = height - 72
 
     # --- Title ---
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.black)
     c.drawString(72, y, title[:90])
     y -= 26
 
-    # --- Traffic light banner based on score ---
+    # --- Traffic light icons (three circles) ---
+    radius = 5
+    x0 = 72
+    c.setStrokeColor(colors.black)
+
+    c.setFillColor(colors.green)
+    c.circle(x0, y + 4, radius, fill=1)
+    c.setFillColor(colors.yellow)
+    c.circle(x0 + 16, y + 4, radius, fill=1)
+    c.setFillColor(colors.red)
+    c.circle(x0 + 32, y + 4, radius, fill=1)
+
+    # --- Risk banner text + color based on score ---
     if score <= 30:
-        banner_text = "🟢 LOW RISK – Within policy guardrails"
+        banner_text = "LOW RISK – Within policy guardrails"
         banner_color = colors.green
     elif score <= 60:
-        banner_text = "🟡 MODERATE RISK – Monitor and log"
+        banner_text = "MODERATE RISK – Monitor and log"
         banner_color = colors.orange
     elif score <= 85:
-        banner_text = "🟠 HIGH RISK – Strong controls / approvals required"
+        banner_text = "HIGH RISK – Strong controls / approvals required"
         banner_color = colors.red
     else:
-        banner_text = "🔴 CRITICAL RISK – Block / escalate immediately"
+        banner_text = "CRITICAL RISK – Block / escalate immediately"
         banner_color = colors.red
 
     banner_text = f"{banner_text}  |  Decision: {decision}"
 
     c.setFont("Helvetica-Bold", 11)
     c.setFillColor(banner_color)
-    c.drawString(72, y, banner_text[:110])
-    y -= 24
+    c.drawString(72 + 48, y, banner_text[:110])
+    y -= 28
 
     # --- Body: markdown-style board_report text ---
     c.setFont("Helvetica", 10)
@@ -269,8 +290,9 @@ def run_pipeline_sync(request_context: Dict[str, Any]):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(accessops_engine.run_pipeline(request_context))
 
+
 # ---------------------------------------------------------------------
-# 3. SIDEBAR – STEP 1: RUNTIME CONFIG
+# 4. SIDEBAR – STEP 1: RUNTIME CONFIG
 # ---------------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🛡️ AccessOps Intelligence")
@@ -299,7 +321,7 @@ with st.sidebar:
         """
 - **DevOps Engineer (LOW RISK)** – Human requesting read-only access to Dev logs.
 - **Toxic Finance Bot (CRITICAL)** – AI bot asking to write to Production General Ledger.
-- **Custom Payload** – Paste any JSON request you want to test.
+- **Build your scenario** – Paste or edit any JSON access request you want to test.
 """
     )
 
@@ -314,7 +336,7 @@ with st.sidebar:
     )
 
 # ---------------------------------------------------------------------
-# 4. HEADER
+# 5. HEADER
 # ---------------------------------------------------------------------
 header_left, header_right = st.columns([1.6, 1])
 
@@ -334,7 +356,7 @@ with header_right:
 st.markdown("")
 
 # ---------------------------------------------------------------------
-# 5. INPUT PANEL – STEP 2 & 3
+# 6. INPUT PANEL – STEP 2 & 3
 # ---------------------------------------------------------------------
 input_col, output_col = st.columns([1.05, 1.45])
 
@@ -343,7 +365,7 @@ with input_col:
     st.markdown('<div class="step-header">📝 Step 2 – Select Scenario</div>', unsafe_allow_html=True)
     scenario = st.radio(
         "Select a test case:",
-        ["DevOps Engineer (LOW RISK)", "Toxic Finance Bot (CRITICAL RISK)", "Custom Payload"],
+        ["DevOps Engineer (LOW RISK)", "Toxic Finance Bot (CRITICAL RISK)", "Build your scenario"],
         captions=[
             "Human engineer requesting read-only access to non-production logs.",
             "AI service account attempting write access to Production General Ledger.",
@@ -408,283 +430,303 @@ with input_col:
     with run_col:
         run_btn = st.button("🚨 Run Security Audit", use_container_width=True)
     with hint_col:
-        st.caption(
-            "Required keys:\n"
-            "- `request_id`\n"
-            "- `user_id`\n"
-            "- `requested_resource_id`\n"
-            "- `access_type`"
+        st.markdown("**Required keys**")
+        st.markdown(
+            f"{format_badge('request_id','🔑')} "
+            f"{format_badge('user_id','👤')} "
+            f"{format_badge('requested_resource_id','📦')} "
+            f"{format_badge('access_type','🔐')}",
+            unsafe_allow_html=True,
         )
 
 # ---------------------------------------------------------------------
-# 6. EXECUTION & OUTPUT – STEP 4 & 5
+# 7. RUN PIPELINE (STORE IN SESSION STATE)
 # ---------------------------------------------------------------------
 if run_btn:
-    with output_col:
-        st.markdown('<div class="step-header">🧠 Step 4 – Agentic Reasoning Trace</div>', unsafe_allow_html=True)
-
-        # Parse JSON safely
-        try:
-            req_data = json.loads(request_text)
-        except json.JSONDecodeError:
-            st.error("❌ Invalid JSON – please correct syntax (double quotes, commas, etc.).")
+    try:
+        req_data = json.loads(request_text)
+    except json.JSONDecodeError:
+        st.session_state["result"] = None
+        st.session_state["req_data"] = None
+        st.session_state["error_msg"] = "❌ Invalid JSON – please correct syntax (double quotes, commas, etc.)."
+    else:
+        missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
+        if missing:
+            st.session_state["result"] = None
+            st.session_state["req_data"] = None
+            st.session_state["error_msg"] = f"❌ Missing required key(s): {', '.join(missing)}."
         else:
-            missing = [k for k in ["request_id", "user_id", "requested_resource_id", "access_type"] if k not in req_data]
-            if missing:
-                st.error(f"❌ Missing required key(s): {', '.join(missing)}.")
+            try:
+                result = run_pipeline_sync(req_data)
+            except Exception as e:
+                st.session_state["result"] = None
+                st.session_state["req_data"] = None
+                st.session_state["error_msg"] = f"Execution Error from backend: {e}"
             else:
-                status_box = st.status("Running AccessOps agent pipeline…", expanded=True)
-                status_box.write("🕵️ Investigator – collecting IAM / entitlements / peer baseline…")
+                st.session_state["result"] = result
+                st.session_state["req_data"] = req_data
+                st.session_state["error_msg"] = None
 
-                try:
-                    result = run_pipeline_sync(req_data)
-                except Exception as e:
-                    status_box.update(
-                        label="❌ Pipeline execution failed",
-                        state="error",
-                        expanded=True,
-                    )
-                    st.error(f"Execution Error from backend: {e}")
-                else:
-                    status_box.write("✅ Severity Analyst – NIST 800-53 net risk computed.")
-                    status_box.write("✅ Risk Critic – challenge / second opinion completed.")
-                    status_box.write("✅ Gatekeeper – authorization decision generated.")
-                    status_box.write("✅ Board Reporter – executive narrative drafted.")
+# ---------------------------------------------------------------------
+# 8. RENDER OUTPUT (PERSISTS ACROSS INTERACTIONS)
+# ---------------------------------------------------------------------
+with output_col:
+    st.markdown('<div class="step-header">🧠 Step 4 – Agentic Reasoning Trace</div>', unsafe_allow_html=True)
 
-                    # Safely access result fields
-                    decision = getattr(result, "decision", "UNKNOWN")
-                    risk_score_obj: Dict[str, Any] = getattr(result, "risk_score", {}) or {}
-                    investigation: Dict[str, Any] = getattr(result, "investigation", {}) or {}
-                    board_report: str = getattr(result, "board_report", "No board report returned.")
-                    execution_trace: List[Dict[str, Any]] = getattr(result, "execution_trace", []) or []
+    error_msg = st.session_state.get("error_msg")
+    result = st.session_state.get("result")
+    req_data = st.session_state.get("req_data")
 
-                    score = risk_score_obj.get("net_risk_score", 0) or 0
-                    severity = risk_score_obj.get("severity_level") or risk_score_obj.get("severity_label", "UNKNOWN")
-
-                    # Normalise policy violations to list[dict]
-                    raw_pv = investigation.get("policy_violations", []) or []
-                    if not isinstance(raw_pv, list):
-                        raw_pv = [raw_pv]
-                    policy_violations: List[Dict[str, Any]] = []
-                    for v in raw_pv:
-                        if isinstance(v, dict):
-                            policy_violations.append(v)
-                        else:
-                            policy_violations.append(
-                                {"policy_id": "UNKNOWN", "description": str(v), "severity": "N/A"}
-                            )
-
-                    # Set status label
-                    if "DENY" in decision.upper() or "REVIEW" in decision.upper():
-                        status_box.update(
-                            label="🛑 Gatekeeper: BLOCKED / REQUIRES HUMAN REVIEW",
-                            state="error",
-                            expanded=False,
-                        )
-                        decision_state = "error"
-                    else:
-                        status_box.update(
-                            label="✅ Gatekeeper: AUTO-APPROVED",
-                            state="complete",
-                            expanded=False,
-                        )
-                        decision_state = "success"
-
-                    # ---------------------- TABS (Step 5) ---------------------------
-                    st.markdown("")
-                    st.markdown('<div class="step-header">📊 Step 5 – Risk Dashboard</div>', unsafe_allow_html=True)
-
-                    overview_tab, signals_tab, context_tab, trace_tab, raw_tab = st.tabs(
-                        [
-                            "Executive Overview",
-                            "Risk Signals",
-                            "Context & Policies",
-                            "Agent Trace (ADK)",
-                            "Raw JSON",
-                        ]
-                    )
-
-                    # Executive Overview
-                    with overview_tab:
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Decision", decision, delta="STOP" if score > 50 else "GO", delta_color="inverse")
-                        m2.metric(
-                            "Net Risk Score",
-                            f"{score:.0f}/100",
-                            delta=severity,
-                            delta_color="inverse",
-                        )
-                        m3.metric(
-                            "Policy Violations",
-                            len(policy_violations),
-                            delta="DETECTED" if policy_violations else "None",
-                            delta_color="inverse",
-                        )
-
-                        st.plotly_chart(create_risk_gauge(float(score)), use_container_width=True)
-
-                        if decision_state == "error":
-                            st.error(
-                                "🛑 **BLOCKED / ESCALATE** – This access request breaches SoD / NIST guardrails. "
-                                "See Risk Signals & Board Report for detailed rationale."
-                            )
-                        else:
-                            st.success(
-                                "✅ **APPROVED / WITHIN GUARDRAILS** – Risk is within the defined policy envelope."
-                            )
-
-                        st.markdown("#### 📄 Executive / Board Report")
-                        st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
-                        st.markdown(board_report, unsafe_allow_html=True)
-
-                        # --- Download buttons: Audit Log + Board Report PDF ---
-                        report_id = req_data.get("request_id", "UNKNOWN")
-
-                        # Board Report PDF (with color + traffic lights)
-                        pdf_bytes = create_pdf_bytes(
-                            board_report,
-                            f"AccessOps Board Report – {report_id}",
-                            float(score),
-                            decision,
-                        )
-
-                        # Audit Log JSON wrapped in Markdown
-                        audit_log = {
-                            "request": req_data,
-                            "decision": decision,
-                            "risk_score": risk_score_obj,
-                            "investigation": investigation,
-                            "execution_trace": execution_trace,
-                        }
-                        audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
-                        audit_log_bytes = audit_log_md.encode("utf-8")
-
-                        dl_col1, dl_col2 = st.columns(2)
-                        with dl_col1:
-                            st.download_button(
-                                label="📄 Audit Log Report (Markdown)",
-                                data=audit_log_bytes,
-                                file_name=f"Audit_Log_{report_id}.md",
-                                mime="text/markdown",
-                                use_container_width=True,
-                            )
-                        with dl_col2:
-                            st.download_button(
-                                label="📊 Board Report (PDF)",
-                                data=pdf_bytes,
-                                file_name=f"Board_Report_{report_id}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True,
-                            )
-
-                    # Risk Signals
-                    with signals_tab:
-                        st.markdown("#### 🚦 Risk Factor Analysis")
-                        risk_signals = investigation.get("risk_signals", {}) or {}
-                        if not isinstance(risk_signals, dict) or not risk_signals:
-                            st.info("No structured `risk_signals` field returned. Showing raw investigation instead.")
-                            st.json(investigation)
-                        else:
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                st.markdown("**Binary / Categorical Signals**")
-                                for key, val in risk_signals.items():
-                                    emoji = "🔴" if bool(val) else "🟢"
-                                    label = key.replace("_", " ").title()
-                                    st.markdown(format_badge(label, emoji), unsafe_allow_html=True)
-                            with col_b:
-                                st.markdown("**High-Level Interpretation**")
-                                high_flags = [k for k, v in risk_signals.items() if v]
-                                if not high_flags:
-                                    st.success("No critical risk flags raised by the investigator.")
-                                else:
-                                    st.error(
-                                        "Raised signals: "
-                                        + ", ".join(k.replace("_", " ") for k in high_flags)
-                                    )
-
-                            st.markdown("---")
-                            st.markdown("**Risk Scoring JSON**")
-                            st.json(risk_score_obj)
-
-                    # Context & Policies
-                    with context_tab:
-                        st.markdown("#### 🧩 Context Signals")
-                        up = investigation.get("user_profile", {})
-                        ent = investigation.get("current_access", {})
-                        peer = investigation.get("peer_baseline", {})
-                        act = investigation.get("activity_summary", {})
-
-                        c1, c2 = st.columns(2)
-                        with c1:
-                            st.markdown("**Identity Profile (WHO)**")
-                            st.json(up or {"note": "No user profile returned."})
-
-                            st.markdown("**Current Entitlements (WHAT THEY ALREADY HAVE)**")
-                            st.json(ent or {"note": "No entitlement data returned."})
-
-                        with c2:
-                            st.markdown("**Peer Baseline (NORM)**")
-                            st.json(peer or {"note": "No peer baseline returned."})
-
-                            st.markdown("**Recent Activity (BEHAVIOR)**")
-                            st.json(act or {"note": "No SIEM / activity summary returned."})
-
-                        st.markdown("---")
-                        st.markdown("#### 📜 Policy Violations")
-                        if not policy_violations:
-                            st.success("No explicit policy violations detected.")
-                        else:
-                            for v in policy_violations:
-                                policy_id = v.get("policy_id", "POLICY")
-                                severity_v = v.get("severity", "SEVERITY")
-                                with st.expander(f"🛑 {policy_id} – {severity_v}", expanded=True):
-                                    st.write(v.get("description", ""))
-                                    st.markdown(
-                                        f"**NIST Control:** `{v.get('nist_control', 'N/A')}`  \n"
-                                        f"**Finding:** {v.get('finding', 'N/A')}"
-                                    )
-
-                    # Agent Trace
-                    with trace_tab:
-                        st.markdown("#### 🧬 ADK Agent Trace")
-                        if not execution_trace:
-                            st.info("No `execution_trace` list returned from engine.")
-                        else:
-                            for i, phase in enumerate(execution_trace, start=1):
-                                phase_name = phase.get("phase", "unknown")
-                                agent_name = phase.get("agent", "unknown")
-                                with st.expander(f"{i}. Phase: {phase_name}", expanded=True):
-                                    st.markdown(
-                                        f"<div class='caption-sm'>Agent: `{agent_name}`</div>",
-                                        unsafe_allow_html=True,
-                                    )
-                                    st.markdown("<div class='trace-card'>", unsafe_allow_html=True)
-                                    st.json(phase)
-                                    st.markdown("</div>", unsafe_allow_html=True)
-
-                    # Raw JSON
-                    with raw_tab:
-                        st.markdown("#### 🧾 Raw Engine Payloads")
-                        st.markdown("**Request Context**")
-                        st.json(req_data)
-                        st.markdown("---")
-                        st.markdown("**Investigation Output**")
-                        st.json(investigation)
-                        st.markdown("---")
-                        st.markdown("**Risk Scoring Output**")
-                        st.json(risk_score_obj)
-                        st.markdown("---")
-                        st.markdown("**Gatekeeper Decision JSON**")
-                        st.json({"decision": decision})
-                        st.markdown("---")
-                        st.markdown("**Execution Trace**")
-                        st.json(execution_trace)
-
-else:
-    # Initial state
-    with output_col:
+    if error_msg:
+        st.error(error_msg)
+    elif result is None or req_data is None:
         st.info(
             "👈 Complete **Step 1 – Runtime Configuration** in the sidebar if needed, "
             "then choose a scenario and click **Run Security Audit** to view the full pipeline."
         )
+    else:
+        # ---------------- Safely extract backend fields ----------------
+        decision = getattr(result, "decision", "UNKNOWN")
+        risk_score_obj: Dict[str, Any] = getattr(result, "risk_score", {}) or {}
+        investigation: Dict[str, Any] = getattr(result, "investigation", {}) or {}
+        board_report: str = getattr(result, "board_report", "No board report returned.")
+        execution_trace: List[Dict[str, Any]] = getattr(result, "execution_trace", []) or []
+
+        score = risk_score_obj.get("net_risk_score", 0) or 0
+        severity = risk_score_obj.get("severity_level") or risk_score_obj.get("severity_label", "UNKNOWN")
+
+        # Normalise policy violations to list[dict]
+        raw_pv = investigation.get("policy_violations", []) or []
+        if not isinstance(raw_pv, list):
+            raw_pv = [raw_pv]
+        policy_violations: List[Dict[str, Any]] = []
+        for v in raw_pv:
+            if isinstance(v, dict):
+                policy_violations.append(v)
+            else:
+                policy_violations.append(
+                    {"policy_id": "UNKNOWN", "description": str(v), "severity": "N/A"}
+                )
+
+        # Decision banner (for on-screen view)
+        if "DENY" in decision.upper() or "REVIEW" in decision.upper():
+            decision_state = "error"
+        else:
+            decision_state = "success"
+
+        st.markdown(
+            f"<div class='caption-sm'>Last evaluated request: "
+            f"<code>{req_data.get('request_id', 'UNKNOWN')}</code></div>",
+            unsafe_allow_html=True,
+        )
+
+        # ---------- NEW: Multi-Agent Status summary ----------
+        agent_counts: Dict[str, int] = {}
+        for phase in execution_trace:
+            agent_name = phase.get("agent") or phase.get("phase") or "unknown_agent"
+            agent_counts[agent_name] = agent_counts.get(agent_name, 0) + 1
+
+        if agent_counts:
+            st.markdown("#### 🤖 Multi-Agent Status")
+            cols = st.columns(min(len(agent_counts), 4))
+            items = list(agent_counts.items())
+            for idx, (agent_name, count) in enumerate(items):
+                col = cols[idx % len(cols)]
+                with col:
+                    pretty_name = agent_name.replace("_", " ").title()
+                    st.markdown(
+                        f"{format_badge(pretty_name, '✅')}<br>"
+                        f"<span class='caption-sm'>{count} events</span>",
+                        unsafe_allow_html=True,
+                    )
+
+        # ---------------------- TABS (Step 5) ---------------------------
+        st.markdown("")
+        st.markdown('<div class="step-header">📊 Step 5 – Risk Dashboard</div>', unsafe_allow_html=True)
+
+        overview_tab, signals_tab, context_tab, trace_tab, raw_tab = st.tabs(
+            [
+                "Executive Overview",
+                "Risk Signals",
+                "Context & Policies",
+                "Agent Trace (ADK)",
+                "Raw JSON",
+            ]
+        )
+
+        # Executive Overview
+        with overview_tab:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Decision", decision, delta="STOP" if score > 50 else "GO", delta_color="inverse")
+            m2.metric(
+                "Net Risk Score",
+                f"{score:.0f}/100",
+                delta=severity,
+                delta_color="inverse",
+            )
+            m3.metric(
+                "Policy Violations",
+                len(policy_violations),
+                delta="DETECTED" if policy_violations else "None",
+                delta_color="inverse",
+            )
+
+            st.plotly_chart(create_risk_gauge(float(score)), use_container_width=True)
+
+            if decision_state == "error":
+                st.error(
+                    "🛑 **BLOCKED / ESCALATE** – This access request breaches SoD / NIST guardrails. "
+                    "See Risk Signals & Board Report for detailed rationale."
+                )
+            else:
+                st.success(
+                    "✅ **APPROVED / WITHIN GUARDRAILS** – Risk is within the defined policy envelope."
+                )
+
+            st.markdown("#### 📄 Executive / Board Report")
+            st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
+            st.markdown(board_report, unsafe_allow_html=True)
+
+            # --- Download buttons: Board Report first, then Audit Log ---
+            report_id = req_data.get("request_id", "UNKNOWN")
+
+            # Board Report PDF (with color + traffic lights)
+            pdf_bytes = create_pdf_bytes(
+                board_report,
+                f"AccessOps Board Report – {report_id}",
+                float(score),
+                decision,
+            )
+
+            # Audit Log JSON wrapped in Markdown
+            audit_log = {
+                "request": req_data,
+                "decision": decision,
+                "risk_score": risk_score_obj,
+                "investigation": investigation,
+                "execution_trace": execution_trace,
+            }
+            audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
+            audit_log_bytes = audit_log_md.encode("utf-8")
+
+            dl_col1, dl_col2 = st.columns(2)
+            with dl_col1:
+                st.download_button(
+                    label="📊 Board Report (PDF)",
+                    data=pdf_bytes,
+                    file_name=f"Board_Report_{report_id}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            with dl_col2:
+                st.download_button(
+                    label="📄 Audit Log Report (Markdown)",
+                    data=audit_log_bytes,
+                    file_name=f"Audit_Log_{report_id}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+
+        # Risk Signals
+        with signals_tab:
+            st.markdown("#### 🚦 Risk Factor Analysis")
+            risk_signals = investigation.get("risk_signals", {}) or {}
+            if not isinstance(risk_signals, dict) or not risk_signals:
+                st.info("No structured `risk_signals` field returned. Showing raw investigation instead.")
+                st.json(investigation)
+            else:
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.markdown("**Binary / Categorical Signals**")
+                    for key, val in risk_signals.items():
+                        emoji = "🔴" if bool(val) else "🟢"
+                        label = key.replace("_", " ").title()
+                        st.markdown(format_badge(label, emoji), unsafe_allow_html=True)
+                with col_b:
+                    st.markdown("**High-Level Interpretation**")
+                    high_flags = [k for k, v in risk_signals.items() if v]
+                    if not high_flags:
+                        st.success("No critical risk flags raised by the investigator.")
+                    else:
+                        st.error(
+                            "Raised signals: "
+                            + ", ".join(k.replace("_", " ") for k in high_flags)
+                        )
+
+                st.markdown("---")
+                st.markdown("**Risk Scoring JSON**")
+                st.json(risk_score_obj)
+
+        # Context & Policies
+        with context_tab:
+            st.markdown("#### 🧩 Context Signals")
+            up = investigation.get("user_profile", {})
+            ent = investigation.get("current_access", {})
+            peer = investigation.get("peer_baseline", {})
+            act = investigation.get("activity_summary", {})
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Identity Profile (WHO)**")
+                st.json(up or {"note": "No user profile returned."})
+
+                st.markdown("**Current Entitlements (WHAT THEY ALREADY HAVE)**")
+                st.json(ent or {"note": "No entitlement data returned."})
+
+            with c2:
+                st.markdown("**Peer Baseline (NORM)**")
+                st.json(peer or {"note": "No peer baseline returned."})
+
+                st.markdown("**Recent Activity (BEHAVIOR)**")
+                st.json(act or {"note": "No SIEM / activity summary returned."})
+
+            st.markdown("---")
+            st.markdown("#### 📜 Policy Violations")
+            if not policy_violations:
+                st.success("No explicit policy violations detected.")
+            else:
+                for v in policy_violations:
+                    policy_id = v.get("policy_id", "POLICY")
+                    severity_v = v.get("severity", "SEVERITY")
+                    with st.expander(f"🛑 {policy_id} – {severity_v}", expanded=True):
+                        st.write(v.get("description", ""))
+                        st.markdown(
+                            f"**NIST Control:** `{v.get('nist_control', 'N/A')}`  \n"
+                            f"**Finding:** {v.get('finding', 'N/A')}"
+                        )
+
+        # Agent Trace
+        with trace_tab:
+            st.markdown("#### 🧬 ADK Agent Trace")
+            if not execution_trace:
+                st.info("No `execution_trace` list returned from engine.")
+            else:
+                for i, phase in enumerate(execution_trace, start=1):
+                    phase_name = phase.get("phase", "unknown")
+                    agent_name = phase.get("agent", "unknown")
+                    with st.expander(f"{i}. Phase: {phase_name}", expanded=True):
+                        st.markdown(
+                            f"<div class='caption-sm'>Agent: `{agent_name}`</div>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown("<div class='trace-card'>", unsafe_allow_html=True)
+                        st.json(phase)
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Raw JSON
+        with raw_tab:
+            st.markdown("#### 🧾 Raw Engine Payloads")
+            st.markdown("**Request Context**")
+            st.json(req_data)
+            st.markdown("---")
+            st.markdown("**Investigation Output**")
+            st.json(investigation)
+            st.markdown("---")
+            st.markdown("**Risk Scoring Output**")
+            st.json(risk_score_obj)
+            st.markdown("---")
+            st.markdown("**Gatekeeper Decision JSON**")
+            st.json({"decision": decision})
+            st.markdown("---")
+            st.markdown("**Execution Trace**")
+            st.json(execution_trace)
