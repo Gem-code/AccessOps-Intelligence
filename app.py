@@ -595,27 +595,58 @@ with output_col:
             st.caption(
                 "Mapped to **NIST 800-53** controls (AC-6, IA-5, AU-6) and Segregation-of-Duties policies."
             )
-
+            # Normalize heading: change "Executive Audit Summary" -> "Executive Board Report"
+            normalized_board_report = board_report or "No board report returned."
+            normalized_board_report = normalized_board_report.replace(
+                "Executive Audit Summary", "Executive Board Report", 1
+            )
+            
             # --- Executive / Board Report (collapsed by default to keep layout compact) ---
             st.markdown("#### 📄 Executive / Board Report")
             
-            # Show a one-line preview (usually the first heading/line of the report)
-            first_line = board_report.splitlines()[0] if board_report else ""
-            if first_line:
-                st.caption(f"Preview: {first_line}")
-            else:
-                st.caption("Auto-generated narrative suitable for CISO, auditors, and regulators.")
+            # Clear, accurate preview label
+            st.caption("Preview: ### 🛡️ Board and Audit Reports")
             
             with st.expander("View full Board Report", expanded=False):
-                st.markdown(board_report, unsafe_allow_html=True)
+                # Use the normalized version so the heading says "Executive Board Report"
+                st.markdown(normalized_board_report, unsafe_allow_html=True)
             
                 # --- Download buttons: Board Report first, then Audit Log ---
                 report_id = req_data.get("request_id", "UNKNOWN")
             
                 pdf_bytes = create_pdf_bytes(
-                    board_report,
+                    normalized_board_report,  # <- use normalized text in the PDF as well
                     f"AccessOps Board Report – {report_id}",
                 )
+            
+                audit_log = {
+                    "request": req_data,
+                    "decision": decision,
+                    "risk_score": risk_score_obj,
+                    "investigation": investigation,
+                    "execution_trace": execution_trace,
+                }
+                audit_log_md = "```json\n" + json.dumps(audit_log, indent=2) + "\n```"
+                audit_log_bytes = audit_log_md.encode("utf-8")
+            
+                dl_col1, dl_col2 = st.columns(2)
+                with dl_col1:
+                    st.download_button(
+                        label="📊 Board Report (PDF)",
+                        data=pdf_bytes,
+                        file_name=f"Board_Report_{report_id}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                with dl_col2:
+                    st.download_button(
+                        label="📄 Audit Log Report (Markdown)",
+                        data=audit_log_bytes,
+                        file_name=f"Audit_Log_{report_id}.md",
+                        mime="text/markdown",
+                        use_container_width=True,
+                    )
+
             
                 audit_log = {
                     "request": req_data,
