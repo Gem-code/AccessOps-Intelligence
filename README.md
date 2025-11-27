@@ -24,7 +24,10 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 --
 
 📌 **Poster-Style Architecture Summary**
-![Architecture Poster](docs/architecture_poster.png)
+![Data Flow Architecture](data_flow.png)
+![Agent Sequence – Toxic Scenario](agent_sequence_toxic.png)
+![Gatekeeper Decision Logic](Gatekeeper_logic.png)
+
 
 …
 
