@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png" width="80%">
+</p>
+
 # 🛡️ AccessOps Intelligence  
 ### A Multi-Agent ADK System for Real-Time Access Risk Governance in Enterprise Cloud Environments
 
