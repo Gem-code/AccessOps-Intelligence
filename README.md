@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png" width="80%">
+  <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png" width="40%" alt="AccessOps Intelligence Logo">
 </p>
 
 # 🛡️ AccessOps Intelligence  
