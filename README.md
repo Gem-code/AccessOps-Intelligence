@@ -114,6 +114,31 @@ Result → **CRITICAL RISK**
 Gatekeeper hard-denies.  
 Narrator generates board-level audit PDF.
 
+📄 Outputs
+
+Board Report (PDF) with traffic lights
+
+Audit Log (JSON) with multi-agent trace
+
+Risk Dashboard
+
+Policy Violations Panel
+
+🔮 Roadmap
+
+Integration with SailPoint / Entra ID / AWS IAM
+
+Slack / Teams ChatOps approval workflows
+
+Historical fine-tuning using real access logs
+
+Policy-as-code OPA integration
+
+Multi-agent memory for longitudinal risk analysis
+
+📧 Contact
+
+For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.
 ---
 
 ## 🛠️ Tech Stack
@@ -142,30 +167,3 @@ docker run -p 8080:8080 accessops-intel
 
 ### **Environment Variables**
 GOOGLE_API_KEY=your_key_here
-
-📄 Outputs
-
-Board Report (PDF) with traffic lights
-
-Audit Log (JSON) with multi-agent trace
-
-Risk Dashboard
-
-Policy Violations Panel
-
-🔮 Roadmap
-
-Integration with SailPoint / Entra ID / AWS IAM
-
-Slack / Teams ChatOps approval workflows
-
-Historical fine-tuning using real access logs
-
-Policy-as-code OPA integration
-
-Multi-agent memory for longitudinal risk analysis
-
-📧 Contact
-
-For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.
-
