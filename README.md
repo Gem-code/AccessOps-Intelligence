@@ -101,3 +101,71 @@ AccessOps Intelligence models the workflow of a real SOC through:
 ### 🚨 **Rogue Finance Bot Request**
 A financial automation AI agent requests:
 
+WRITE access → Production General Ledger
+
+The multi-agent pipeline identifies:
+
+- Peer baseline mismatch  
+- SOX segregation-of-duties violation  
+- No compensating controls  
+- High sensitivity data  
+
+Result → **CRITICAL RISK**  
+Gatekeeper hard-denies.  
+Narrator generates board-level audit PDF.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Google ADK (Agent Orchestration)**  
+- **Gemini 1.5 Flash** (reasoning)  
+- **Streamlit** (UI)  
+- **Plotly** (gauge visualization)  
+- **ReportLab** (PDF generation)  
+- **Docker** (deployment)  
+- **Google Cloud Run** (hosting: optional)
+
+---
+
+## 🔍 Running the App
+
+### **Local**
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+
+### **Docker**
+
+docker build -t accessops-intel .
+docker run -p 8080:8080 accessops-intel
+
+### **Environment Variables**
+GOOGLE_API_KEY=your_key_here
+
+📄 Outputs
+
+Board Report (PDF) with traffic lights
+
+Audit Log (JSON) with multi-agent trace
+
+Risk Dashboard
+
+Policy Violations Panel
+
+🔮 Roadmap
+
+Integration with SailPoint / Entra ID / AWS IAM
+
+Slack / Teams ChatOps approval workflows
+
+Historical fine-tuning using real access logs
+
+Policy-as-code OPA integration
+
+Multi-agent memory for longitudinal risk analysis
+
+📧 Contact
+
+For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.
+
