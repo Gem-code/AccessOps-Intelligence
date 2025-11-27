@@ -321,7 +321,7 @@ st.markdown(
     """
     <div style='text-align:right; margin-top: -20px; margin-bottom: 10px;'>
         <img src='https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png'
-             width='28%'>
+             width='20%'>
     </div>
     """,
     unsafe_allow_html=True
