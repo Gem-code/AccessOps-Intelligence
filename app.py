@@ -316,16 +316,26 @@ with st.sidebar:
     )
 
 
-# --- Project Logo (Centered, Small) ---
-st.markdown(
-    """
-    <div style='text-align:right; margin-top: -20px; margin-bottom: 10px;'>
-        <img src='https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png'
-             width='20%'>
+# --- Project Logo (Right, Small) ---
+with col2:
+    st.markdown("""
+    <style>
+    .logo-container img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+    .logo-container {
+        overflow: hidden;
+        border-radius: 6px;
+    }
+    </style>
+
+    <div class="logo-container">
+        <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png">
     </div>
-    """,
-    unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------
@@ -340,11 +350,10 @@ with header_left:
         "grounded in NIST 800-53 and Segregation-of-Duties policies."
     )
 
-with header_right:
-    st.markdown("<div class='section-label'>SESSION CONTEXT</div>", unsafe_allow_html=True)
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    st.markdown(format_badge(now_str, "⏱️"), unsafe_allow_html=True)
-    st.markdown(format_badge("NIST 800-53 • AC-6 • SoD", "📚"), unsafe_allow_html=True)
+with st.sidebar:
+    st.markdown("### 🕒 Session Context")
+    st.info(f"**UTC:** {session_timestamp}")
+    st.success("NIST 800-53 • AC-6 • SoD")
 
 with st.expander("🧩 Why this matters"):
     st.markdown(
