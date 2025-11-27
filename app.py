@@ -327,9 +327,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 5 Header ---
-st.title("CISO Command Center — AccessOps Intelligence")
-
 
 # ---------------------------------------------------------------------
 # 5. HEADER
