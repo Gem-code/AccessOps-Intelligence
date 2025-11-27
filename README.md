@@ -24,6 +24,7 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 --
 
 📌 **High Level Architecture Diagrams**
+
 **Architecture Diagram:** [data_flow.png](data_flow.png)
 
 **Agent Sequence (Toxic Scenario):** [agent_sequence_toxic.png](agent_sequence_toxic.png)
