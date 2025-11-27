@@ -10,6 +10,9 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_monaco import st_monaco
 
+# One-time session timestamp in UTC
+session_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
 # ---------------------------------------------------------------------
 # 0. ENGINE WIRING
 # ---------------------------------------------------------------------
