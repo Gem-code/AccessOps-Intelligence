@@ -126,7 +126,7 @@ Narrator generates board-level audit PDF.
 - **Docker** (deployment)  
 - **Google Cloud Run** (hosting: optional)
 
-📄 Outputs
+## 📄 Outputs
 
 Board Report (PDF) with traffic lights
 
@@ -136,7 +136,7 @@ Risk Dashboard
 
 Policy Violations Panel
 
-🔮 Roadmap
+## 🔮 Roadmap
 
 Integration with SailPoint / Entra ID / AWS IAM
 
@@ -148,8 +148,7 @@ Policy-as-code OPA integration
 
 Multi-agent memory for longitudinal risk analysis
 
-📧 Contact
-
+## 📧 Contact
 For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.
 ---
 
