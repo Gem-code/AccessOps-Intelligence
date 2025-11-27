@@ -315,7 +315,9 @@ with st.sidebar:
         "5. Export board-ready report and audit log."
     )
 
-
+# ---------------------------------------------------------------------
+# 5. HEADER
+# ---------------------------------------------------------------------
 # ----------- Top Header Row With Logo (Balanced) -------------
 
 col1, col2 = st.columns([3, 1])  # wider left column, narrower right
@@ -356,19 +358,6 @@ with col2:
         </div>
         """,
         unsafe_allow_html=True,
-    )
-
-
-# ---------------------------------------------------------------------
-# 5. HEADER
-# ---------------------------------------------------------------------
-header_left, header_right = st.columns([1.6, 1])
-
-with header_left:
-    st.title("CISO Command Center – AccessOps Intelligence")
-    st.markdown(
-        "Real-time **access risk adjudication** for human and AI identities, "
-        "grounded in NIST 800-53 and Segregation-of-Duties policies."
     )
 
 with st.sidebar:
