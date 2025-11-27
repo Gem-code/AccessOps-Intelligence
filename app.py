@@ -316,26 +316,47 @@ with st.sidebar:
     )
 
 
-# --- Project Logo (Right, Small) ---
-with col2:
-    st.markdown("""
-    <style>
-    .logo-container img {
-        width: 100%;
-        height: auto;
-        object-fit: cover;
-        border-radius: 6px;
-    }
-    .logo-container {
-        overflow: hidden;
-        border-radius: 6px;
-    }
-    </style>
+# ----------- Top Header Row With Logo (Balanced) -------------
 
-    <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png">
-    </div>
-    """, unsafe_allow_html=True)
+col1, col2 = st.columns([3, 1])  # wider left column, narrower right
+
+with col1:
+    st.markdown(
+        """
+        <h1 style='margin-top: 10px; margin-bottom: -5px;'>
+            CISO Command Center — AccessOps Intelligence
+        </h1>
+        <p style='font-size: 18px; color: #444; margin-top: 0;'>
+            Real-time access risk adjudication for human and AI identities,
+            grounded in NIST 800-53 and Segregation-of-Duties policies.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with col2:
+    st.markdown(
+        """
+        <style>
+        .logo-container img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .logo-container {
+            overflow: hidden;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+        </style>
+
+        <div class="logo-container">
+            <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ---------------------------------------------------------------------
