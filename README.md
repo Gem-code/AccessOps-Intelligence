@@ -23,18 +23,12 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 
 --
 
-📌 **High Level Architecture Overview, Data flow and Sequence Diagrams**
-<a href="data_flow.png" target="_blank">
-  <img src="data_flow.png" width="350">
-</a>
+📌 **High Level Architecture Diagrams**
+**Architecture Diagram:** [data_flow.png](data_flow.png)
 
-<a href="agent_sequence_toxic.png" target="_blank">
-  <img src="agent_sequence_toxic.png" width="350">
-</a>
+**Agent Sequence (Toxic Scenario):** [agent_sequence_toxic.png](agent_sequence_toxic.png)
 
-<a href="Gatekeeper_logic.png" target="_blank">
-  <img src="Gatekeeper_logic.png" width="350">
-</a>
+**Gatekeeper Logic:** [Gatekeeper_logic.png](Gatekeeper_logic.png)
 
 …
 
