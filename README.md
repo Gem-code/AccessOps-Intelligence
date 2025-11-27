@@ -21,7 +21,12 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 - Custom JSON scenario builder  
 - Architecture diagrams integrated directly in the UI  
 
----
+--
+
+📌 **Poster-Style Architecture Summary**
+![Architecture Poster](docs/architecture_poster.png)
+
+…
 
 ## 🚨 The Problem: “Context Blindness” in Traditional Access Governance
 
