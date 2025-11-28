@@ -5,7 +5,7 @@
     </td>
     <td align="right" valign="middle" style="border: none; padding: 10px;">
       <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Header_Image.png"
-           width="200"
+           width="380"
            alt="AccessOps Intelligence Logo"
            style="display: block;">
     </td>
