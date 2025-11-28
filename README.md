@@ -165,7 +165,11 @@ Policy-as-code OPA integration
 Multi-agent memory for longitudinal risk analysis
 
 ## 📧 Contact
-For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.
+
+For questions, demos, or enterprise adaptation, please reach out through Kaggle or GitHub.<br>
+Github - Gem-code<br>
+Kaggle - gem2024<br>
+
 ---
 
 ## 🔍 Running the App
