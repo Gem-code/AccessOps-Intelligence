@@ -1,4 +1,4 @@
-import os
+ƒimport os
 import json
 import asyncio
 import io
@@ -197,22 +197,18 @@ def format_badge(label: str, emoji: str) -> str:
 def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     """
     Generate a Board Report PDF that closely matches the Streamlit UI:
-      - Title: "AccessOps Board Report – <REQ-ID>"
-      - 🛡 Executive Board Report heading + narrative paragraph
-      - 🚦 Risk Factor Analysis (NIST/COBIT) with circular status dots
-      - 📋 Recommended Management Action as a numbered list (1, 2, 3, ...)
+      - Title: AccessOps Board Report – <REQ-ID>
+      - 🛡 Executive Board Report heading + paragraph
+      - 🚦 Risk Factor Analysis (NIST/COBIT) table
+        * Status column uses per-row "traffic light" status (🔴 / 🟡 / 🟢)
+      - 📋 Recommended Management Action (supports numbered list OR single paragraph)
+
+    This version uses ReportLab Platypus so it plays nicely with the rest of the app.
     """
 
     import io
     from reportlab.lib.pagesizes import LETTER
-    from reportlab.platypus import (
-        SimpleDocTemplate,
-        Paragraph,
-        Spacer,
-        Table,
-        TableStyle,
-        Flowable,
-    )
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
     from reportlab.lib.units import inch
@@ -229,7 +225,7 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
 
     styles = getSampleStyleSheet()
 
-    # --- Styles --------------------------------------------------------
+    # Styles roughly matching UI
     h_title = ParagraphStyle(
         name="ReportTitle",
         parent=styles["Heading1"],
@@ -249,33 +245,22 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
         parent=styles["BodyText"],
         fontSize=10,
         leading=14,
-        spaceAfter=8,
+        spaceAfter=10,
     )
 
     story = []
 
-    # --- Small helper: circular status dot for table cells -------------
-    class StatusDot(Flowable):
-        def __init__(self, color, diameter=8):
-            Flowable.__init__(self)
-            self.color = color
-            self.diameter = diameter
-            self.width = diameter
-            self.height = diameter
-
-        def draw(self):
-            self.canv.setFillColor(self.color)
-            self.canv.setStrokeColor(self.color)
-            r = self.diameter / 2.0
-            self.canv.circle(r, r, r, fill=1, stroke=0)
-
-    # === 0. Title ======================================================
+    # ------------------------------------------------------------------
+    # 0. Top title ("AccessOps Board Report – REQ-XXX")
+    # ------------------------------------------------------------------
     story.append(Paragraph(title, h_title))
     story.append(Spacer(1, 6))
 
     lines = board_report_md.splitlines()
 
-    # === 1. Executive Board Report ====================================
+    # ------------------------------------------------------------------
+    # 1. Executive Board Report (🛡 heading + paragraph)
+    # ------------------------------------------------------------------
     story.append(Paragraph("🛡 Executive Board Report", h_section))
 
     exec_summary_lines = []
@@ -283,11 +268,13 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     while i < len(lines):
         line = lines[i].strip()
         if "Executive Board Report" in line:
+            # consume following non-empty lines until blank or next heading
             i += 1
             while i < len(lines):
                 l = lines[i].strip()
                 if not l:
                     break
+                # skip markdown headings
                 if l.startswith("#"):
                     break
                 exec_summary_lines.append(l)
@@ -300,7 +287,9 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
         story.append(Paragraph(exec_text, body))
         story.append(Spacer(1, 12))
 
-    # === 2. Risk Factor Analysis ======================================
+    # ------------------------------------------------------------------
+    # 2. Risk Factor Analysis (🚦 heading + table)
+    # ------------------------------------------------------------------
     story.append(Paragraph("🚦 Risk Factor Analysis (NIST/COBIT)", h_section))
 
     headers = []
@@ -309,74 +298,67 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     i = 0
     while i < len(lines):
         if "| Status" in lines[i] and "Risk Component" in lines[i]:
-            # header row (markdown table)
-            header_cells = [
-                c.strip() for c in lines[i].strip().split("|") if c.strip()
-            ]
+            # header row
+            header_cells = [c.strip() for c in lines[i].strip().split("|") if c.strip()]
             headers = header_cells
-            i += 2  # skip separator row
+            # skip separator row
+            i += 2
+            # data rows
             while i < len(lines) and lines[i].strip().startswith("|"):
-                cells = [
-                    c.strip() for c in lines[i].strip().split("|") if c.strip()
-                ]
+                cells = [c.strip() for c in lines[i].strip().split("|") if c.strip()]
                 rows.append(cells)
                 i += 1
             break
         i += 1
 
-    # Clean markdown (**bold**) and build table data
-    table_data = []
-    if headers and rows:
-        clean_headers = [h.replace("**", "") for h in headers]
-        table_data.append(clean_headers)
+    # Clean markdown from data cells (remove **)
+    cleaned_rows = []
+    for r in rows:
+        cleaned_rows.append([cell.replace("**", "") for cell in r])
 
-        for r in rows:
-            status_raw = r[0]
-            component = r[1].replace("**", "")
-            note = r[2].replace("**", "")
-
-            status_text = status_raw.upper()
-            # Map to color
-            if "🔴" in status_raw or "HIGH" in status_text or "CRIT" in status_text:
-                dot_color = colors.red
-            elif "🟡" in status_raw or "MED" in status_text:
-                dot_color = colors.yellow
-            elif "🟠" in status_raw or "ORANGE" in status_text:
-                dot_color = colors.orange
-            else:
-                dot_color = colors.green
-
-            table_data.append(
-                [
-                    StatusDot(dot_color),  # circular status dot
-                    component,
-                    note,
-                ]
-            )
-
+    # Table rendering: Status column shows traffic-light status
+    if headers and cleaned_rows:
         col_widths = [0.6 * inch, 2.1 * inch, 3.0 * inch]
-        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table_data = [headers] + cleaned_rows
 
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
         ts = TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
                 ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, 0), 10),
                 ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ]
         )
-        # Center the dot in the first col cells (rows >=1)
-        ts.add("ALIGN", (0, 1), (0, len(table_data) - 1), "CENTER")
+
+        # Status column colors (per-row)
+        for row_idx in range(1, len(table_data)):
+            status_cell = table_data[row_idx][0]
+            status_str = str(status_cell).strip()
+            # Map emojis / words to colors
+            if "🔴" in status_str or "HIGH" in status_str.upper() or "CRIT" in status_str.upper():
+                fill = colors.red
+            elif "🟡" in status_str or "MED" in status_str.upper():
+                fill = colors.yellow
+            elif "🟠" in status_str or "ORANGE" in status_str.upper():
+                fill = colors.orange
+            else:
+                # default LOW/green
+                fill = colors.green
+            ts.add("BACKGROUND", (0, row_idx), (0, row_idx), fill)
+            ts.add("TEXTCOLOR", (0, row_idx), (0, row_idx), colors.white)
+            ts.add("ALIGN", (0, row_idx), (0, row_idx), "CENTER")
 
         t.setStyle(ts)
         story.append(t)
         story.append(Spacer(1, 12))
 
-    # === 3. Recommended Management Action =============================
+    # ------------------------------------------------------------------
+    # 3. Recommended Management Action (📋 heading + body)
+    # ------------------------------------------------------------------
     story.append(Paragraph("📋 Recommended Management Action", h_section))
 
     actions_raw = []
@@ -389,6 +371,7 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
                 if not l:
                     i += 1
                     continue
+                # stop if we hit another markdown heading (unlikely at end)
                 if l.startswith("#"):
                     break
                 actions_raw.append(l)
@@ -397,36 +380,31 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
         i += 1
 
     if actions_raw:
-        # Very common pattern in your markdown: "1. Text", "2. Text"...
-        numbered_items = []
-        for l in actions_raw:
-            stripped = l.lstrip("✅ ").strip()
-            # If it's already "1. Text", "2. Text" etc., keep the number
-            if len(stripped) > 2 and stripped[0].isdigit() and stripped[1] in {".", ")"}:
-                parts = stripped.split(" ", 1)
-                number = parts[0].rstrip(".)")
-                text = parts[1] if len(parts) == 2 else ""
-            else:
-                # If not numbered, we will assign numbers ourselves
-                number = None
-                text = stripped
-
-            numbered_items.append((number, text))
-
-        # If there were no explicit numbers, assign 1, 2, 3...
-        if all(n is None for n, _ in numbered_items):
-            numbered_items = [
-                (str(idx), text) for idx, (_, text) in enumerate(numbered_items, start=1)
-            ]
-
-        for idx, (n, text) in enumerate(numbered_items, start=1):
-            num = n if n is not None else str(idx)
-            story.append(Paragraph(f"{num}. {text}", body))
+        # Determine if we have numbered list items like "1. text"
+        numbered = all(
+            (len(l) > 2 and l[0].isdigit() and l[1] in {".", ")"})
+            for l in actions_raw
+        )
+        if numbered:
+            # Render each as its own numbered paragraph
+            for l in actions_raw:
+                # strip leading "1. " or "1) "
+                parts = l.split(" ", 1)
+                if len(parts) == 2 and parts[0][0].isdigit():
+                    text = parts[1]
+                else:
+                    text = l
+                story.append(Paragraph(text, body))
+        else:
+            # Treat as a single paragraph (e.g. DevOps LOW-risk example)
+            combined = " ".join(actions_raw)
+            story.append(Paragraph(combined, body))
 
     doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+
 
 
 
