@@ -25,7 +25,7 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 - Custom JSON scenario builder  
 - Architecture diagrams integrated directly in the UI  
 
---
+---
 
 📌 **High Level Architecture Diagrams**
 
@@ -35,7 +35,7 @@ It is deployed as a full **CISO Command Center UI** using Streamlit, with:
 
 **Gatekeeper Logic:** [Gatekeeper_logic.png](Gatekeeper_logic.png)
 
-…
+---
 
 ## 🚨 The Problem: “Context Blindness” in Traditional Access Governance
 
@@ -78,7 +78,7 @@ AccessOps Intelligence models the workflow of a real SOC through:
 
 ## 🏗️ Architecture Overview
 
-<img src="docs/data_flow.png" style="width:100%;"/>
+<img src="data_flow.png" style="width:100%;"/>
 
 ### **Agentic Pipeline (High-Level)**
 
@@ -94,7 +94,7 @@ AccessOps Intelligence models the workflow of a real SOC through:
 
 ## 🖥️ CISO Command Center UI
 
-<img src="docs/ui_screenshot.png" style="width:100%;"/>
+<img src="ui_screenshot.png" style="width:100%;"/>
 
 ### Key Features
 
@@ -150,6 +150,8 @@ Risk Dashboard
 
 Policy Violations Panel
 
+## 📊 Test Results
+[Test Results](https://github.com/Gem-code/AccessOps-Intelligence/blob/master/TestResults.md)
 ## 🔮 Roadmap
 
 Integration with SailPoint / Entra ID / AWS IAM
