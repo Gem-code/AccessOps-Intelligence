@@ -1,8 +1,18 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png" width="40%" alt="AccessOps Intelligence Logo">
-</p>
+<table width="100%" style="width: 100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
+  <tr>
+    <td align="left" valign="middle" style="border: none; padding: 10px;">
+      <h1 style="margin: 0;">🛡️ AccessOps Intelligence</h1>
+    </td>
+    <td align="right" valign="middle" style="border: none; padding: 10px;">
+      <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png"
+           width="200"
+           alt="AccessOps Intelligence Logo"
+           style="display: block;">
+    </td>
+  </tr>
+</table>
 
-# 🛡️ AccessOps Intelligence  
+
 ### A Multi-Agent ADK System for Real-Time Access Risk Governance in Enterprise Cloud Environments
 
 ---
