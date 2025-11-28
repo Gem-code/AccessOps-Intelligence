@@ -499,7 +499,7 @@ with st.sidebar:
     st.markdown("#### ⚙️ Step 1 – Runtime Configuration")
 
     api_key = st.text_input(
-        "Google API Key (optional for local runs):",
+        "Add Gemini API key to start AccessOps.",
         type="password",
         help="For local / MakerSuite runs. In Cloud Run, Vertex AI uses service account auth.",
     )
@@ -515,7 +515,7 @@ with st.sidebar:
         """
 - **DevOps Engineer (LOW RISK)** – Human requesting read-only access to Dev logs.
 - **Toxic Finance Bot (CRITICAL)** – AI bot asking to write to Production General Ledger.
-- **Build your scenario** – Paste or edit any JSON access request you want to test.
+- **Custom Scenario** – Paste or edit any JSON access request you want to test.
 """
     )
 
@@ -587,9 +587,9 @@ with st.sidebar:
 
 with st.expander("🧩 Why this matters"):
     st.markdown(
-        "- Most modern breaches involve some form of identity or access failure.\n"
-        "- AI agents can request powerful access at machine speed, often outside traditional IAM workflows.\n"
-        "- AccessOps Intelligence makes those AI and human access decisions **explainable, auditable and policy-aligned**."
+        "- Identity and access weaknesses continue to be among the leading contributors to breaches (Verizon DBIR).\n"
+        "- AI and automation workflows generate high-volume, high-impact access requests that bypass traditional IAM review paths.\n"
+        "- AccessOps Intelligence provides consistent, explainable, auditable access decisions aligned to enterprise controls, NIST 800-53 requirements, and Zero Trust policies**."
     )
 
 st.markdown("")
@@ -601,14 +601,14 @@ input_col, output_col = st.columns([1.05, 1.45])
 
 with input_col:
     # Step 2 – Scenario
-    st.markdown('<div class="step-header">📝 Step 2 – Select Scenario</div>', unsafe_allow_html=True)
+    st.markdown('<div class="step-header">📝 Step 2 – Select/Build AccessOps Scenario</div>', unsafe_allow_html=True)
     scenario = st.radio(
-        "Select a test case:",
-        ["DevOps Engineer (LOW RISK)", "Toxic Finance Bot (CRITICAL RISK)", "Build your scenario"],
+        "Select/Build AccessOps Scenario",
+        ["DevOps Engineer (LOW RISK)", "Toxic Finance Bot (CRITICAL RISK)", "Custom Scenario"],
         captions=[
-            "Human engineer requesting read-only access to non-production logs.",
+            "Human requesting read-only access to non-production logs.",
             "AI service account attempting write access to Production General Ledger.",
-            "Bring your own JSON body.",
+            "Paste or edit any JSON access request.",
         ],
     )
 
@@ -808,7 +808,7 @@ with output_col:
         overview_tab, signals_tab, context_tab, trace_tab, raw_tab = st.tabs(
             [
                 "Executive Overview",
-                "Risk Signals",
+                "Risk Indicators",
                 "Context & Policies",
                 "Agent Trace (ADK)",
                 "Raw JSON",
@@ -837,7 +837,7 @@ with output_col:
             if decision_state == "error":
                 st.error(
                     "🛑 **BLOCKED / ESCALATE** – This access request breaches SoD / NIST guardrails. "
-                    "See Risk Signals & Board Report for detailed rationale."
+                    "See Risk Indicators & Board Report for detailed rationale."
                 )
             else:
                 st.success(
@@ -907,13 +907,13 @@ with output_col:
                 except Exception:
                     st.info("Architecture diagram PNG not found in repository (data_flow.png).")
 
-        # Risk Signals
+        # Risk Indicators 
         with signals_tab:
             st.markdown("#### 🚦 Risk Factor Analysis")
             risk_signals = investigation.get("risk_signals", {}) or {}
             if not isinstance(risk_signals, dict) or not risk_signals:
                 st.info(
-                    "The engine did not return structured risk signals for this run. "
+                    "The engine did not return structured Risk Indicators  for this run. "
                     "Showing the full investigation details instead."
                 )
                 st.json(investigation)
