@@ -506,8 +506,6 @@ with st.sidebar:
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
         st.success("✅ API key set for this session.")
-    else:
-        st.info("Using default Vertex / GCP identity from backend config.")
 
     st.markdown("---")
     st.markdown("#### 🧪 Demo Scenarios")
@@ -757,10 +755,11 @@ with output_col:
     if error_msg:
         st.error(error_msg)
     elif result is None or req_data is None:
-        st.info(
-            "👈 Complete **Step 1 – Runtime Configuration** in the sidebar if needed, "
-            "then choose a scenario and click **Run Security Audit** to view the full pipeline."
+        st.markdown(
+            '<span style="color:red; font-weight:600;">👈 Complete <b>Step 1 – Add Gemini API Key</b> to start AccessOps.</span>',
+            unsafe_allow_html=True
         )
+
     else:
         # ---------------- Safely extract backend fields ----------------
         decision = getattr(result, "decision", "UNKNOWN")
