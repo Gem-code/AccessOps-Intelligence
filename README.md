@@ -78,7 +78,7 @@ AccessOps Intelligence models the workflow of a real SOC through:
 
 ## 🏗️ Architecture Overview
 
-<img src="data_flow.png" style="width:100%;"/>
+<!-- <img src="data_flow.png" style="width:100%;"/> -->
 
 ### **Agentic Pipeline (High-Level)**
 
@@ -151,7 +151,11 @@ Risk Dashboard
 Policy Violations Panel
 
 ## 📊 Test Results
-[Test Results](https://github.com/Gem-code/AccessOps-Intelligence/blob/master/TestResults.md)
+
+The [Test Results](https://github.com/Gem-code/AccessOps-Intelligence/blob/master/TestResults.md) page provides a detailed breakdown of all validation checks run across the system.
+It includes scenario-level outcomes, agent behaviors, policy evaluation summaries, and any detected anomalies.
+These results help verify end-to-end reliability, highlight failure points, and ensure the multi-agent workflows operate as expected.
+
 ## 🔮 Roadmap
 
 Integration with SailPoint / Entra ID / AWS IAM
