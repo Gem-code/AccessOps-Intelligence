@@ -194,66 +194,242 @@ def create_risk_gauge(score: float) -> go.Figure:
 def format_badge(label: str, emoji: str) -> str:
     return f'<span class="pill-badge">{emoji} {label}</span>'
 
-
 def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     """
-    Render the board_report markdown AS-IS into a PDF, so the
-    PDF content matches the dashboard. Only extra decoration
-    is a small traffic-light row at the top.
+    Render the AccessOps Board Report markdown into a PDF
+    so that the look & structure match the Streamlit UI:
+      - Title + traffic lights
+      - Executive Board Report paragraph
+      - Risk Factor Analysis table (NIST/COBIT)
+      - Recommended Management Action list
+
+    Assumes the markdown follows the structure produced
+    by the board report generator in this app.
     """
+    import io
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
     from reportlab.lib import colors
+    from reportlab.lib.units import inch
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=LETTER)
     width, height = LETTER
-    y = height - 72
+    margin = 0.85 * inch
+    y = height - margin
 
-    # Title line (mirrors dashboard heading)
+    # --- helpers -----------------------------------------------------
+    def new_page():
+        nonlocal y
+        c.showPage()
+        c.setFont("Helvetica", 10)
+        c.setFillColor(colors.black)
+        y = height - margin
+
+    def draw_wrapped(text, font="Helvetica", size=10, leading=13, indent=0):
+        """
+        Draw a paragraph with simple word-wrapping.
+        """
+        nonlocal y
+        c.setFont(font, size)
+        max_width = width - margin * 2 - indent
+        for para_line in text.splitlines():
+            line = para_line.strip()
+            if not line:
+                y -= leading
+                if y < margin:
+                    new_page()
+                continue
+
+            words = line.split()
+            current = ""
+            for w in words:
+                test = (current + " " + w).strip()
+                if c.stringWidth(test, font, size) > max_width:
+                    c.drawString(margin + indent, y, current)
+                    y -= leading
+                    if y < margin:
+                        new_page()
+                        c.setFont(font, size)
+                    current = w
+                else:
+                    current = test
+            if current:
+                c.drawString(margin + indent, y, current)
+                y -= leading
+                if y < margin:
+                    new_page()
+                    c.setFont(font, size)
+
+    def draw_section_heading(text):
+        nonlocal y
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(colors.black)
+        c.drawString(margin, y, text)
+        y -= 18
+        if y < margin:
+            new_page()
+
+    def draw_table(headers, rows, col_widths):
+        """
+        Very simple table renderer for the Risk Factor Analysis section.
+        headers: list of header strings
+        rows: list of lists
+        col_widths: list of widths in points
+        """
+        nonlocal y
+        row_height = 16
+        table_width = sum(col_widths)
+        x = margin
+
+        # If not enough space, go to next page
+        needed_height = row_height * (len(rows) + 1) + 10
+        if y - needed_height < margin:
+            new_page()
+
+        # Header background
+        c.setFillColor(colors.lightgrey)
+        c.rect(x, y - row_height, table_width, row_height, fill=1, stroke=0)
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 9)
+
+        # Header text
+        col_x = x + 4
+        for i, h in enumerate(headers):
+            c.drawString(col_x, y - row_height + 4, str(h))
+            col_x += col_widths[i]
+
+        y -= row_height
+
+        # Rows
+        c.setFont("Helvetica", 9)
+        for row in rows:
+            c.setFillColor(colors.whitesmoke)
+            c.rect(x, y - row_height, table_width, row_height, fill=1, stroke=0)
+            c.setFillColor(colors.black)
+            col_x = x + 4
+            for i, cell in enumerate(row):
+                # first column is status = colored circle
+                if i == 0:
+                    status = str(cell).strip().lower()
+                    if "high" in status or "red" in status or "inherent" in status:
+                        c.setFillColor(colors.red)
+                    elif "med" in status or "yellow" in status or "control" in status:
+                        c.setFillColor(colors.orange)
+                    else:
+                        c.setFillColor(colors.green)
+                    c.circle(col_x + 4, y - row_height / 2 + 2, 4, fill=1)
+                    c.setFillColor(colors.black)
+                else:
+                    c.drawString(col_x, y - row_height + 4, str(cell))
+                col_x += col_widths[i]
+            y -= row_height
+            if y < margin + row_height:
+                new_page()
+
+        y -= 10
+
+    # --- Header: title + traffic lights ------------------------------
     c.setFont("Helvetica-Bold", 16)
     c.setFillColor(colors.black)
-    c.drawString(72, y, title[:90])
+    c.drawString(margin, y, title[:100])
     y -= 24
 
-    # Small traffic-light row (visual only)
-    radius = 5
+    # traffic lights
+    radius = 6
     c.setStrokeColor(colors.black)
     c.setFillColor(colors.green)
-    c.circle(72, y + 4, radius, fill=1)
+    c.circle(margin, y + 4, radius, fill=1)
     c.setFillColor(colors.yellow)
-    c.circle(72 + 16, y + 4, radius, fill=1)
+    c.circle(margin + 18, y + 4, radius, fill=1)
     c.setFillColor(colors.red)
-    c.circle(72 + 32, y + 4, radius, fill=1)
-    y -= 18
-
-    # Body: print markdown text exactly as returned by the agent
-    c.setFont("Helvetica", 10)
+    c.circle(margin + 36, y + 4, radius, fill=1)
     c.setFillColor(colors.black)
+    y -= 24
 
-    for raw_line in board_report_md.splitlines():
-        line = raw_line.rstrip()
-        if not line:
-            y -= 10
-        else:
-            while len(line) > 110:
-                c.drawString(72, y, line[:110])
-                line = line[110:]
-                y -= 12
-                if y < 72:
-                    c.showPage()
-                    c.setFont("Helvetica", 10)
-                    c.setFillColor(colors.black)
-                    y = height - 72
-            c.drawString(72, y, line)
-            y -= 12
+    # --- Parse markdown structure -----------------------------------
+    lines = board_report_md.splitlines()
+    i = 0
 
-        if y < 72:
-            c.showPage()
-            c.setFont("Helvetica", 10)
-            c.setFillColor(colors.black)
-            y = height - 72
+    # We expect three main logical blocks:
+    # 1) Executive Board Report (heading + paragraph)
+    # 2) Risk Factor Analysis (heading + table)
+    # 3) Recommended Management Action (heading + numbered list)
 
+    # 1) Executive Board Report
+    while i < len(lines):
+        line = lines[i].strip()
+        if "Executive Board Report" in line:
+            draw_section_heading("Executive Board Report")
+            i += 1
+            # Collect following non-empty lines until blank or next heading
+            paragraph_lines = []
+            while i < len(lines):
+                l = lines[i].rstrip()
+                if l.startswith("###") or l.startswith("## "):
+                    break
+                if l.strip():
+                    paragraph_lines.append(l.lstrip("# ").strip())
+                i += 1
+            draw_wrapped(" ".join(paragraph_lines), font="Helvetica", size=10, leading=13)
+            y -= 6
+            break
+        i += 1
+
+    # 2) Risk Factor Analysis table
+    # Find header line "| Status | Risk Component | Audit Note |"
+    headers = []
+    rows = []
+    i = 0
+    while i < len(lines):
+        if "| Status" in lines[i] and "Risk Component" in lines[i]:
+            # Parse header row
+            header_cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+            headers = header_cells
+            # Skip separator row
+            i += 2
+            # Parse subsequent rows until line doesn't start with '|'
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                rows.append(cells)
+                i += 1
+            break
+        i += 1
+
+    if headers and rows:
+        draw_section_heading("Risk Factor Analysis (NIST/COBIT)")
+        # Simple static column widths: status small, others wider
+        col_widths = [0.9 * inch, 1.7 * inch, width - 2 * margin - 0.9 * inch - 1.7 * inch]
+        draw_table(headers, rows, col_widths)
+
+    # 3) Recommended Management Action (numbered list)
+    i = 0
+    actions = []
+    while i < len(lines):
+        line = lines[i].strip()
+        if "Recommended Management Action" in line:
+            i += 1
+            # Collect numbered lines: "1.", "2.", etc.
+            while i < len(lines):
+                l = lines[i].strip()
+                if not l:
+                    i += 1
+                    continue
+                if l[0].isdigit() and l[1:3] in (". ", ".)"):
+                    # strip "1. " / "1) "
+                    action_text = l.split(" ", 1)[1] if " " in l else l
+                    actions.append(action_text.strip("✅ ").strip())
+                i += 1
+            break
+        i += 1
+
+    if actions:
+        draw_section_heading("Recommended Management Action")
+        c.setFont("Helvetica", 10)
+        for idx, act in enumerate(actions, start=1):
+            draw_wrapped(f"{idx}. {act}", font="Helvetica", size=10, leading=13, indent=10)
+
+    # finalize
     c.showPage()
     c.save()
     pdf_bytes = buffer.getvalue()
@@ -261,6 +437,85 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     return pdf_bytes
 
 
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle(
+        "h1",
+        parent=styles["Heading1"],
+        fontSize=18,
+        spaceAfter=12,
+        leading=22,
+    )
+    h2 = ParagraphStyle(
+        "h2",
+        parent=styles["Heading2"],
+        fontSize=15,
+        spaceAfter=10,
+        leading=20,
+    )
+    body = ParagraphStyle(
+        "body",
+        parent=styles["BodyText"],
+        fontSize=11,
+        leading=16,
+    )
+
+    doc = SimpleDocTemplate(filename, pagesize=letter, leftMargin=50, rightMargin=50)
+    story = []
+
+    # Title
+    story.append(Paragraph("<b>AccessOps Board Report</b>", h1))
+    story.append(Spacer(1, 6))
+
+    # EXECUTIVE SUMMARY
+    story.append(Paragraph("🛡️ <b>Executive Board Report</b>", h2))
+    story.append(Paragraph(executive_summary, body))
+    story.append(Spacer(1, 12))
+
+    # RISK FACTOR ANALYSIS
+    story.append(Paragraph("🚦 <b>Risk Factor Analysis (NIST/COBIT)</b>", h2))
+
+    table_data = [["Status", "Risk Component", "Audit Note"]]
+    for row in risk_rows:
+        table_data.append([row[0], row[1], row[2]])
+
+    table = Table(table_data, colWidths=[60, 170, 230])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 10),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+
+    risk_rows = [
+    ("🔴", "Inherent Risk", "Score: TBD"),
+    ("🟡", "Control Effectiveness", "API Quota Exceeded"),
+    ("🔴", "Compliance Gaps", "TBD"),
+    ("🔴", "Net Risk Score", "PENDING")
+]
+
+build_board_report_pdf(
+    "board_report.pdf",
+    executive_summary="The access request for 'eng_human_user' requires manager review...",
+    risk_rows=risk_rows,
+    management_action="The Engineering Manager must review..."
+)
+    story.append(table)
+    story.append(Spacer(1, 12))
+
+    # MANAGEMENT ACTION
+    story.append(Paragraph("📋 <b>Recommended Management Action</b>", h2))
+    story.append(Paragraph(management_action, body))
+
+    doc.build(story)
+    
 def run_pipeline_sync(request_context: Dict[str, Any]):
     """
     Helper to run the async pipeline from Streamlit safely.
