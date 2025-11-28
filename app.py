@@ -500,21 +500,6 @@ def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     ("🔴", "Compliance Gaps", "TBD"),
     ("🔴", "Net Risk Score", "PENDING")
 ]
-
-build_board_report_pdf(
-    "board_report.pdf",
-    executive_summary="The access request for 'eng_human_user' requires manager review...",
-    risk_rows=risk_rows,
-    management_action="The Engineering Manager must review..."
-)
-    story.append(table)
-    story.append(Spacer(1, 12))
-
-    # MANAGEMENT ACTION
-    story.append(Paragraph("📋 <b>Recommended Management Action</b>", h2))
-    story.append(Paragraph(management_action, body))
-
-    doc.build(story)
     
 def run_pipeline_sync(request_context: Dict[str, Any]):
     """
