@@ -78,7 +78,7 @@ AccessOps Intelligence models the workflow of a real SOC through:
 
 ## 🏗️ Architecture Overview
 
-<!-- <img src="data_flow.png" style="width:100%;"/> -->
+<img src="data_flow.png" style="width:100%;"/>
 
 ### **Agentic Pipeline (High-Level)**
 
