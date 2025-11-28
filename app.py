@@ -196,242 +196,211 @@ def format_badge(label: str, emoji: str) -> str:
 
 def create_pdf_bytes(board_report_md: str, title: str) -> bytes:
     """
-    Render the AccessOps Board Report markdown into a PDF
-    so that the look & structure match the Streamlit UI:
-      - Title + traffic lights
-      - Executive Board Report paragraph
-      - Risk Factor Analysis table (NIST/COBIT)
-      - Recommended Management Action list
+    Generate a Board Report PDF that closely matches the Streamlit UI:
+      - Title: AccessOps Board Report – <REQ-ID>
+      - 🛡 Executive Board Report heading + paragraph
+      - 🚦 Risk Factor Analysis (NIST/COBIT) table
+        * Status column uses per-row "traffic light" status (🔴 / 🟡 / 🟢)
+      - 📋 Recommended Management Action (supports numbered list OR single paragraph)
 
-    Assumes the markdown follows the structure produced
-    by the board report generator in this app.
+    This version uses ReportLab Platypus so it plays nicely with the rest of the app.
     """
+
     import io
     from reportlab.lib.pagesizes import LETTER
-    from reportlab.pdfgen import canvas
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
     from reportlab.lib.units import inch
 
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=LETTER)
-    width, height = LETTER
-    margin = 0.85 * inch
-    y = height - margin
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=LETTER,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72,
+    )
 
-    # --- helpers -----------------------------------------------------
-    def new_page():
-        nonlocal y
-        c.showPage()
-        c.setFont("Helvetica", 10)
-        c.setFillColor(colors.black)
-        y = height - margin
+    styles = getSampleStyleSheet()
 
-    def draw_wrapped(text, font="Helvetica", size=10, leading=13, indent=0):
-        """
-        Draw a paragraph with simple word-wrapping.
-        """
-        nonlocal y
-        c.setFont(font, size)
-        max_width = width - margin * 2 - indent
-        for para_line in text.splitlines():
-            line = para_line.strip()
-            if not line:
-                y -= leading
-                if y < margin:
-                    new_page()
-                continue
+    # Styles roughly matching UI
+    h_title = ParagraphStyle(
+        name="ReportTitle",
+        parent=styles["Heading1"],
+        fontSize=16,
+        leading=20,
+        spaceAfter=12,
+    )
+    h_section = ParagraphStyle(
+        name="SectionHeading",
+        parent=styles["Heading2"],
+        fontSize=14,
+        leading=18,
+        spaceAfter=10,
+    )
+    body = ParagraphStyle(
+        name="Body",
+        parent=styles["BodyText"],
+        fontSize=10,
+        leading=14,
+        spaceAfter=10,
+    )
 
-            words = line.split()
-            current = ""
-            for w in words:
-                test = (current + " " + w).strip()
-                if c.stringWidth(test, font, size) > max_width:
-                    c.drawString(margin + indent, y, current)
-                    y -= leading
-                    if y < margin:
-                        new_page()
-                        c.setFont(font, size)
-                    current = w
-                else:
-                    current = test
-            if current:
-                c.drawString(margin + indent, y, current)
-                y -= leading
-                if y < margin:
-                    new_page()
-                    c.setFont(font, size)
+    story = []
 
-    def draw_section_heading(text):
-        nonlocal y
-        c.setFont("Helvetica-Bold", 14)
-        c.setFillColor(colors.black)
-        c.drawString(margin, y, text)
-        y -= 18
-        if y < margin:
-            new_page()
+    # ------------------------------------------------------------------
+    # 0. Top title ("AccessOps Board Report – REQ-XXX")
+    # ------------------------------------------------------------------
+    story.append(Paragraph(title, h_title))
+    story.append(Spacer(1, 6))
 
-    def draw_table(headers, rows, col_widths):
-        """
-        Very simple table renderer for the Risk Factor Analysis section.
-        headers: list of header strings
-        rows: list of lists
-        col_widths: list of widths in points
-        """
-        nonlocal y
-        row_height = 16
-        table_width = sum(col_widths)
-        x = margin
-
-        # If not enough space, go to next page
-        needed_height = row_height * (len(rows) + 1) + 10
-        if y - needed_height < margin:
-            new_page()
-
-        # Header background
-        c.setFillColor(colors.lightgrey)
-        c.rect(x, y - row_height, table_width, row_height, fill=1, stroke=0)
-        c.setFillColor(colors.black)
-        c.setFont("Helvetica-Bold", 9)
-
-        # Header text
-        col_x = x + 4
-        for i, h in enumerate(headers):
-            c.drawString(col_x, y - row_height + 4, str(h))
-            col_x += col_widths[i]
-
-        y -= row_height
-
-        # Rows
-        c.setFont("Helvetica", 9)
-        for row in rows:
-            c.setFillColor(colors.whitesmoke)
-            c.rect(x, y - row_height, table_width, row_height, fill=1, stroke=0)
-            c.setFillColor(colors.black)
-            col_x = x + 4
-            for i, cell in enumerate(row):
-                # first column is status = colored circle
-                if i == 0:
-                    status = str(cell).strip().lower()
-                    if "high" in status or "red" in status or "inherent" in status:
-                        c.setFillColor(colors.red)
-                    elif "med" in status or "yellow" in status or "control" in status:
-                        c.setFillColor(colors.orange)
-                    else:
-                        c.setFillColor(colors.green)
-                    c.circle(col_x + 4, y - row_height / 2 + 2, 4, fill=1)
-                    c.setFillColor(colors.black)
-                else:
-                    c.drawString(col_x, y - row_height + 4, str(cell))
-                col_x += col_widths[i]
-            y -= row_height
-            if y < margin + row_height:
-                new_page()
-
-        y -= 10
-
-    # --- Header: title + traffic lights ------------------------------
-    c.setFont("Helvetica-Bold", 16)
-    c.setFillColor(colors.black)
-    c.drawString(margin, y, title[:100])
-    y -= 24
-
-    # traffic lights
-    radius = 6
-    c.setStrokeColor(colors.black)
-    c.setFillColor(colors.green)
-    c.circle(margin, y + 4, radius, fill=1)
-    c.setFillColor(colors.yellow)
-    c.circle(margin + 18, y + 4, radius, fill=1)
-    c.setFillColor(colors.red)
-    c.circle(margin + 36, y + 4, radius, fill=1)
-    c.setFillColor(colors.black)
-    y -= 24
-
-    # --- Parse markdown structure -----------------------------------
     lines = board_report_md.splitlines()
+
+    # ------------------------------------------------------------------
+    # 1. Executive Board Report (🛡 heading + paragraph)
+    # ------------------------------------------------------------------
+    story.append(Paragraph("🛡 Executive Board Report", h_section))
+
+    exec_summary_lines = []
     i = 0
-
-    # We expect three main logical blocks:
-    # 1) Executive Board Report (heading + paragraph)
-    # 2) Risk Factor Analysis (heading + table)
-    # 3) Recommended Management Action (heading + numbered list)
-
-    # 1) Executive Board Report
     while i < len(lines):
         line = lines[i].strip()
         if "Executive Board Report" in line:
-            draw_section_heading("Executive Board Report")
+            # consume following non-empty lines until blank or next heading
             i += 1
-            # Collect following non-empty lines until blank or next heading
-            paragraph_lines = []
             while i < len(lines):
-                l = lines[i].rstrip()
-                if l.startswith("###") or l.startswith("## "):
+                l = lines[i].strip()
+                if not l:
                     break
-                if l.strip():
-                    paragraph_lines.append(l.lstrip("# ").strip())
+                # skip markdown headings
+                if l.startswith("#"):
+                    break
+                exec_summary_lines.append(l)
                 i += 1
-            draw_wrapped(" ".join(paragraph_lines), font="Helvetica", size=10, leading=13)
-            y -= 6
             break
         i += 1
 
-    # 2) Risk Factor Analysis table
-    # Find header line "| Status | Risk Component | Audit Note |"
+    if exec_summary_lines:
+        exec_text = " ".join(exec_summary_lines)
+        story.append(Paragraph(exec_text, body))
+        story.append(Spacer(1, 12))
+
+    # ------------------------------------------------------------------
+    # 2. Risk Factor Analysis (🚦 heading + table)
+    # ------------------------------------------------------------------
+    story.append(Paragraph("🚦 Risk Factor Analysis (NIST/COBIT)", h_section))
+
     headers = []
     rows = []
+
     i = 0
     while i < len(lines):
         if "| Status" in lines[i] and "Risk Component" in lines[i]:
-            # Parse header row
-            header_cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+            # header row
+            header_cells = [c.strip() for c in lines[i].strip().split("|") if c.strip()]
             headers = header_cells
-            # Skip separator row
+            # skip separator row
             i += 2
-            # Parse subsequent rows until line doesn't start with '|'
+            # data rows
             while i < len(lines) and lines[i].strip().startswith("|"):
-                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
+                cells = [c.strip() for c in lines[i].strip().split("|") if c.strip()]
                 rows.append(cells)
                 i += 1
             break
         i += 1
 
-    if headers and rows:
-        draw_section_heading("Risk Factor Analysis (NIST/COBIT)")
-        # Simple static column widths: status small, others wider
-        col_widths = [0.9 * inch, 1.7 * inch, width - 2 * margin - 0.9 * inch - 1.7 * inch]
-        draw_table(headers, rows, col_widths)
+    # Clean markdown from data cells (remove **)
+    cleaned_rows = []
+    for r in rows:
+        cleaned_rows.append([cell.replace("**", "") for cell in r])
 
-    # 3) Recommended Management Action (numbered list)
+    # Table rendering: Status column shows traffic-light status
+    if headers and cleaned_rows:
+        col_widths = [0.6 * inch, 2.1 * inch, 3.0 * inch]
+        table_data = [headers] + cleaned_rows
+
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        ts = TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ]
+        )
+
+        # Status column colors (per-row)
+        for row_idx in range(1, len(table_data)):
+            status_cell = table_data[row_idx][0]
+            status_str = str(status_cell).strip()
+            # Map emojis / words to colors
+            if "🔴" in status_str or "HIGH" in status_str.upper() or "CRIT" in status_str.upper():
+                fill = colors.red
+            elif "🟡" in status_str or "MED" in status_str.upper():
+                fill = colors.yellow
+            elif "🟠" in status_str or "ORANGE" in status_str.upper():
+                fill = colors.orange
+            else:
+                # default LOW/green
+                fill = colors.green
+            ts.add("BACKGROUND", (0, row_idx), (0, row_idx), fill)
+            ts.add("TEXTCOLOR", (0, row_idx), (0, row_idx), colors.white)
+            ts.add("ALIGN", (0, row_idx), (0, row_idx), "CENTER")
+
+        t.setStyle(ts)
+        story.append(t)
+        story.append(Spacer(1, 12))
+
+    # ------------------------------------------------------------------
+    # 3. Recommended Management Action (📋 heading + body)
+    # ------------------------------------------------------------------
+    story.append(Paragraph("📋 Recommended Management Action", h_section))
+
+    actions_raw = []
     i = 0
-    actions = []
     while i < len(lines):
-        line = lines[i].strip()
-        if "Recommended Management Action" in line:
+        if "Recommended Management Action" in lines[i]:
             i += 1
-            # Collect numbered lines: "1.", "2.", etc.
             while i < len(lines):
                 l = lines[i].strip()
                 if not l:
                     i += 1
                     continue
-                if l[0].isdigit() and l[1:3] in (". ", ".)"):
-                    # strip "1. " / "1) "
-                    action_text = l.split(" ", 1)[1] if " " in l else l
-                    actions.append(action_text.strip("✅ ").strip())
+                # stop if we hit another markdown heading (unlikely at end)
+                if l.startswith("#"):
+                    break
+                actions_raw.append(l)
                 i += 1
             break
         i += 1
 
-    if actions:
-        draw_section_heading("Recommended Management Action")
-        c.setFont("Helvetica", 10)
-        for idx, act in enumerate(actions, start=1):
-            draw_wrapped(f"{idx}. {act}", font="Helvetica", size=10, leading=13, indent=10)
+    if actions_raw:
+        # Determine if we have numbered list items like "1. text"
+        numbered = all(
+            (len(l) > 2 and l[0].isdigit() and l[1] in {".", ")"})
+            for l in actions_raw
+        )
+        if numbered:
+            # Render each as its own numbered paragraph
+            for l in actions_raw:
+                # strip leading "1. " or "1) "
+                parts = l.split(" ", 1)
+                if len(parts) == 2 and parts[0][0].isdigit():
+                    text = parts[1]
+                else:
+                    text = l
+                story.append(Paragraph(text, body))
+        else:
+            # Treat as a single paragraph (e.g. DevOps LOW-risk example)
+            combined = " ".join(actions_raw)
+            story.append(Paragraph(combined, body))
 
-    # finalize
-    c.showPage()
-    c.save()
+    doc.build(story)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
