@@ -342,23 +342,29 @@ with col1:
 with col2:
     st.markdown(
         """
-        <style>
-        .logo-container img {
-            width: 100%;
-            height: 140px;
-            object-fit: cover;
-            border-radius: 8px;
-        }
-        .logo-container {
-            overflow: hidden;
-            border-radius: 8px;
-            margin-top: 5px;
-        }
-        </style>
+<style>
+.logo-container {
+    width: 110%;            /* adjust width as needed */
+    height: 145x;         
+    overflow: hidden;      
+    border-radius: 8px;   
+    margin-top: 5px;
+    margin-right: auto;
+    margin-left: -40px;     /* pushes container to the right */
+}
 
-        <div class="logo-container">
-            <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Logo.png">
-        </div>
+.logo-container img {
+    width: 100%;           /* image fills container */
+    height: 100%;          
+    object-fit: cover;     
+    display: block;        
+}
+</style>
+
+<div class="logo-container">
+    <img src="https://raw.githubusercontent.com/Gem-code/AccessOps-Intelligence/refs/heads/master/AccessOps-AI_SecurityShield_Header_Image.png"
+         alt="AccessOps Intelligence Header">
+</div>
         """,
         unsafe_allow_html=True,
     )
