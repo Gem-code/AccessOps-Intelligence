@@ -8,9 +8,9 @@ from typing import Any, Dict, List
 import nest_asyncio
 import plotly.graph_objects as go
 import streamlit as st
-from streamlit_monaco import st_monaco
+from streamlit_monaco import st_monaco 
 
-# One-time session timestamp in UTC
+# One-time session timestamp in UTC 
 session_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 # ---------------------------------------------------------------------
@@ -520,13 +520,14 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown("#### 📓 Judge Runbook")
+    st.markdown("#### 📓 AccessOps Runbook")
     st.caption(
-        "1. Complete Step 1 if needed.\n"
-        "2. Pick a scenario & inspect JSON.\n"
+        "1. Add Gemini API key to start AccessOps.\n"
+        "2. Select or build a scenario & inspect JSON.\n"
         "3. Run Security Audit.\n"
-        "4. Use tabs: Executive, Signals, Context, Agent Trace, Raw JSON.\n"
-        "5. Export board-ready report and audit log."
+        "4. Expand to view: Executive Overview, Risk Indicators, Context & POlicies, Agent Trace (ADK), Raw JSON.\n"
+        "5. Generate board report."
+        "6. Download board report and audit log."
     )
 
 # ---------------------------------------------------------------------
