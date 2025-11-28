@@ -11,7 +11,7 @@ This table summarizes each UnitTest audit log (testcase → role → access type
 | [REQ-TC05](UnitTest/Audit_Log_REQ-TC05.md) | Application Developer | read | non_prod | AUTO_APPROVE | 50 |
 | [REQ-TC06](UnitTest/Audit_Log_REQ-TC06.md) | Software Engineer | read_write | non_prod | AUTO_APPROVE | 60 |
 | [REQ-TC07](UnitTest/Audit_Log_REQ-TC07.md) | Summer Intern | read | saas_internal | AUTO_APPROVE | 40 |
-| [REQ-TC08](UnitTest/Audit_Log_REQ-TC08.md) | Key Rotation Service | execute (key rotation) | (see file) | PENDING_MANAGER_REVIEW | 80 |
+| [REQ-TC08](UnitTest/Audit_Log_REQ-TC08.md) | Key Rotation Service | execute (key rotation) | prod | PENDING_MANAGER_REVIEW | 80 |
 | [REQ-TC09](UnitTest/Audit_Log_REQ-TC09.md) | Data Scientist | read | prod | AUTO_APPROVE | 40 |
 | [REQ-TC10](UnitTest/Audit_Log_REQ-TC10.md) | ML Engineer | read_write | non_prod | AUTO_APPROVE | 60 |
 | [REQ-TC11](UnitTest/Audit_Log_REQ-TC11.md) | Finance Automation Agent | write | prod | PENDING_HUMAN_REVIEW | 80 |
