@@ -586,12 +586,32 @@ with st.sidebar:
     st.info(f"**UTC:** {session_timestamp}")
     st.success("NIST 800-53 • AC-6 • SoD")
 
-with st.expander("🧩 Why this matters"):
-    st.markdown(
-        "- Identity and access weaknesses continue to be among the leading contributors to breaches (Verizon DBIR).\n"
-        "- AI and automation workflows generate high-volume, high-impact access requests that bypass traditional IAM review paths.\n"
-        "- AccessOps Intelligence provides consistent, explainable, auditable access decisions aligned to enterprise controls, NIST 800-53 requirements, and Zero Trust policies**."
+# Create a narrower container for the expander
+with st.container():
+    st.markdown("""
+        <style>
+        .narrow-expander .streamlit-expander {
+            width: 20% !important;      /* adjust width */
+            margin-left: auto;
+            margin-right: auto;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
     )
+
+    # Apply custom class
+    st.markdown('<div class="narrow-expander">', unsafe_allow_html=True)
+
+    with st.expander("🧩 Why this matters"):
+        st.markdown(
+            "- Most modern breaches involve some form of identity or access failure.\n"
+            "- AI agents can request powerful access at machine speed, often outside traditional IAM workflows.\n"
+            "- AccessOps Intelligence makes those AI and human access decisions **explainable, auditable and policy-aligned**."
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 st.markdown("")
 
@@ -815,6 +835,28 @@ with output_col:
                 "Raw JSON",
             ]
         )
+
+        st.markdown("""
+        <style>
+
+        /* Shrink metric label */
+        div[data-testid="stMetricLabel"] {
+            font-size: 20px !important;
+        }
+
+        /* Shrink main metric value */
+        div[data-testid="stMetricValue"] {
+            font-size: 20px !important;
+            font-weight: 600 !important;
+        }
+
+        /* Shrink delta text (GO/STOP/DETECTED) */
+        div[data-testid="stMetricDelta"] {
+            font-size: 20px !important;
+        }
+
+        </style>
+        """, unsafe_allow_html=True)
 
         # Executive Overview
         with overview_tab:
