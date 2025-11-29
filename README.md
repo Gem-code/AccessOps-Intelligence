@@ -21,7 +21,7 @@
 
 **AccessOps Intelligence** is a multi-agent risk adjudication engine built with the **Google Agent Development Kit (ADK)** and **Gemini 1.5 Flash**.
 
-It governs real-time access requests from **Non-Human Identities (NHIs)** such as AI agents, service accounts, and automation bots — which now outnumber human identities 10:1 in modern cloud infrastructures.
+It governs real-time access requests from **Non-Human Identities (NHIs)** such as AI agents, service accounts, and automation bots — which now outnumber human identities **45:1, and are increasing at a rapid pace in modern cloud infrastructures.
 
 The system replicates the reasoning workflow of a Security Operations Center (SOC):  
 investigate → quantify → critique → enforce → report.
