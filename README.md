@@ -148,7 +148,6 @@ Narrator generates board-level audit PDF.
 - **Plotly** (gauge visualization)  
 - **ReportLab** (PDF generation)  
 - **Docker** (deployment)  
-- **Google Cloud Run** (hosting: optional)
 
 ## 📄 Outputs
 
