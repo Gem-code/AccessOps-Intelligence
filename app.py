@@ -755,9 +755,8 @@ with output_col:
     if error_msg:
         st.error(error_msg)
     elif result is None or req_data is None:
-        st.markdown(
-            '<span style="color:red; font-weight:600;">👈 Complete <b>Step 1 – Add Gemini API Key</b> to start AccessOps.</span>',
-            unsafe_allow_html=True
+        st.info(
+            "👈 Complete Step 1 – Add Gemini API Key to start AccessOps.",
         )
 
     else:
